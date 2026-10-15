@@ -809,6 +809,7 @@ function saveProfile(){
   state.profile.handle=ps.handle.value.trim().replace(/[^A-Za-z0-9_.]/g,'').slice(0,24);
   state.profile.hue=pDraft.hue;state.profile.photo=pDraft.photo||'';state.profile.banner=pDraft.banner||'auto';
   closeProfile();mutate();
+  if(AN)nsPushStyle().then(function(){nativeSync(true)});
   notify('edit','مشخصات ذخیره شد',n);
 }
 ps.form.addEventListener('submit',function(e){e.preventDefault();saveProfile()});
@@ -1711,7 +1712,26 @@ var NS_COL={rem:'#3D63F0',sum:'#F59E0B',eve:'#7C4DFF',wr:'#16A34A',focus:'#FF375
 function nsCfg(){return nsClean(state.profile.ns)}
 var AN=null;
 try{var CAP4=window.Capacitor;if(CAP4&&CAP4.isNativePlatform&&CAP4.isNativePlatform())AN=(CAP4.Plugins&&CAP4.Plugins.ArioNotify)||(CAP4.registerPlugin&&CAP4.registerPlugin('ArioNotify'))||null}catch(e){AN=null}
-function nsCustom(){return !!AN&&nsCfg().th!=='sys'}
+function nsHasAv(){var p=state.profile;return okPhoto(p.photo)&&canUse(p.photo)}
+function nsCustom(){return !!AN&&(nsCfg().th!=='sys'||nsHasAv())}
+/* profile photo as a round PNG for the notification's large icon */
+function nsAvatarData(){
+  return new Promise(function(res){
+    if(!nsHasAv()){res('');return}
+    var im=new Image();
+    im.onload=function(){
+      try{
+        var S=192,cv=document.createElement('canvas');cv.width=S;cv.height=S;var cx=cv.getContext('2d');
+        cx.beginPath();cx.arc(S/2,S/2,S/2,0,Math.PI*2);cx.closePath();cx.clip();
+        var k=Math.max(S/im.naturalWidth,S/im.naturalHeight),w=im.naturalWidth*k,h=im.naturalHeight*k;
+        cx.drawImage(im,(S-w)/2,(S-h)/2,w,h);
+        res(cv.toDataURL('image/png').split(',')[1]);
+      }catch(e){res('')}
+    };
+    im.onerror=function(){res('')};
+    im.src='img/'+state.profile.photo+'.webp';
+  });
+}
 /* neutral item for the native themed notifier */
 function nsToAN(n){
   var ex=n.extra||{};
@@ -1741,9 +1761,10 @@ function nsBannerData(){
 }
 async function nsPushStyle(){
   if(!AN)return;
-  var c=nsCfg(),b='';
+  var c=nsCfg(),b='',a='';
   if(c.th==='banner')try{b=await nsBannerData()}catch(e){}
-  try{await AN.setStyle({theme:c.th,banner:b})}catch(e){}
+  try{a=await nsAvatarData()}catch(e){}
+  try{await AN.setStyle({theme:c.th,banner:b,avatar:a})}catch(e){}
 }
 /* snooze / done pressed on a themed notification while the app was closed */
 async function nsTakeActs(){
@@ -1817,7 +1838,7 @@ async function nativeSync(force){
   try{
     var list=state.profile.notif?nsBuild():[];
     var extra=state.profile.notif?nsSmart():[];
-    var cfg=nsCfg(),custom=nsCustom(),sig=list.map(function(x){return x.t.id+':'+x.due+':'+x.t.t+':'+(x.t.te||'')+':'+(x.t.c||'')+':'+(x.t.p||0)}).join('|')+'#'+extra.map(function(x){return x.id+x.body+x.schedule.at.getTime()}).join('|')+'#'+JSON.stringify(cfg)+(custom?'1':'0');
+    var cfg=nsCfg(),custom=nsCustom(),sig=list.map(function(x){return x.t.id+':'+x.due+':'+x.t.t+':'+(x.t.te||'')+':'+(x.t.c||'')+':'+(x.t.p||0)}).join('|')+'#'+extra.map(function(x){return x.id+x.body+x.schedule.at.getTime()}).join('|')+'#'+JSON.stringify(cfg)+(custom?'1':'0')+(nsHasAv()?state.profile.photo:'');
     if(force||sig!==nsSig){
       if(NL){
         var p=await NL.getPending();
@@ -1848,7 +1869,7 @@ async function nativeSync(force){
 async function nativeInit(){
   widgetSync();
   nsPushStyle().then(function(){nsTakeActs()});
-  if(!NL)return;
+  if(!NL){askMic();return}
   try{
     await NL.createChannel({id:'reminders',name:'یادآورها',description:'یادآوری زمان کارها',importance:4,visibility:1,vibration:true,lights:true});
     await NL.createChannel({id:'focus',name:'پایان تمرکز',description:'اعلان پایان تایمر تمرکز',importance:4,visibility:1,vibration:true,lights:true});
@@ -1875,6 +1896,15 @@ async function nativeInit(){
     if(st.display!=='granted'&&state.profile.notif){state.profile.notif=false;writeCache();persist()}
   }catch(e){}
   nativeSync(true);
+  askMic();
+}
+/* microphone permission, asked right after the notification permission on first launch (voice input in quick add + Konkuria) */
+async function askMic(){
+  if(!SRN)return;
+  try{
+    var pm=await SRN.checkPermissions();
+    if(pm&&(pm.speechRecognition==='prompt'||pm.speechRecognition==='prompt-with-rationale'))await SRN.requestPermissions();
+  }catch(e){}
 }
 async function nativeExact(){
   if(!NL||!NL.checkExactNotificationSetting)return;
@@ -3079,10 +3109,10 @@ actions.openAppInfo=openAppInfo;
 
 /* ---------- weekly timetable (days down the side, parts 1-7 across) ---------- */
 var TT_DAYS=['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'];
-var TT_COL=['#ffc9c9','#ffd8a8','#fff3a3','#c0f0c8','#b3ecf0','#b8d4ff','#dcc6ff','#ffc6e2','#e3e6ee'];
-var TT_SUB=[['ریاضی',5],['فیزیک',6],['شیمی',4],['زیست',3],['ادبیات',7],['عربی',1],['دین و زندگی',2],['زبان',0],['آزمون',0],['مرور',8],['استراحت',8]];
+var TT_COL=['#ffc9c9','#ffd8a8','#fff3a3','#c0f0c8','#b3ecf0','#b8d4ff','#dcc6ff','#ffc6e2','#e3e6ee','#e8d5b5'];
+var TT_SUB=[['ریاضی',5,'calc'],['فیزیک',6,'atom'],['شیمی',4,'flask'],['زیست',3,'dna'],['زمین‌شناسی',9,'mountain'],['ادبیات',7,'pen'],['عربی',1,'translate'],['دین و زندگی',2,'mosque'],['زبان',0,'globe'],['آزمون',0,'test'],['مرور',8,'refresh'],['استراحت',8,'coffee']];
 var TT_TC=['#e03131','#e8590c','#d9a000','#2f9e44','#0c8599','#1971c2','#7048e8','#c2255c','#343a40'];
-var TT_ICONS=ICONS.concat(['clock','check','flag','edit','fire','sun','timer','spark','user','mic','bell','stats','lists']).filter(function(n,i,a){return a.indexOf(n)===i});
+var TT_ICONS=ICONS.concat(['clock','check','flag','edit','fire','sun','timer','spark','user','mic','bell','stats','lists','calc','atom','flask','dna','mountain','pen','translate','mosque','test']).filter(function(n,i,a){return a.indexOf(n)===i});
 function ttIc(n){return typeof n==='string'&&TT_ICONS.indexOf(n)>-1?n:''}
 function ttIco(n,c){n=ttIc(n);return n?icon(n,c||'tti'):''}
 function ttPick(){return '<div class="sec"><div class="sec-h"><b>آیکون</b></div><div class="icons tt-ics"><button type="button" class="icb" data-e="ic" data-n="" style="--cc:var(--accent)" aria-label="بدون آیکون">'+icon('close')+'</button>'+TT_ICONS.map(function(n){return '<button type="button" class="icb" data-e="ic" data-n="'+n+'" style="--cc:var(--accent)" aria-label="آیکون">'+icon(n)+'</button>'}).join('')+'</div></div>'}
@@ -3114,8 +3144,8 @@ function ttGet(){
 }
 function ttCell(t,rid,d){
   var c=t.cells[rid+'_'+d];if(!c||typeof c!=='object')return null;
-  var tx=typeof c.t==='string'?c.t.slice(0,80):'',cc=(typeof c.c==='number'&&c.c>=0&&c.c<TT_COL.length)?Math.floor(c.c):-1,hh=typeof c.h==='string'?c.h.slice(0,14):'',kk=(typeof c.k==='number'&&c.k>=0&&c.k<TT_TC.length)?Math.floor(c.k):-1,ic=ttIc(c.ic);
-  return (tx||cc>-1||hh||kk>-1||ic)?{t:tx,c:cc,h:hh,k:kk,ic:ic}:null;
+  var tx=typeof c.t==='string'?c.t.slice(0,80):'',cc=(typeof c.c==='number'&&c.c>=0&&c.c<TT_COL.length)?Math.floor(c.c):-1,hh=typeof c.h==='string'?c.h.slice(0,14):'',kk=(typeof c.k==='number'&&c.k>=0&&c.k<TT_TC.length)?Math.floor(c.k):-1,ic=ttIc(c.ic),nn=typeof c.n==='string'?c.n.slice(0,300):'';
+  return (tx||cc>-1||hh||kk>-1||ic||nn)?{t:tx,c:cc,h:hh,k:kk,ic:ic,n:nn}:null;
 }
 function ttClamp(v,a,b,d){v=Number(v);if(!isFinite(v))v=d;return Math.max(a,Math.min(b,v))}
 function ttInfo(t,i){
@@ -3182,7 +3212,7 @@ function ttGrid(){
     h+='<button type="button" class="tt-c tt-dt'+(tod?' today':'')+'" data-tt="date" data-d="'+d+'" aria-label="تغییر تاریخ '+dn+'">'+esc(ds[d])+'</button><button type="button" class="tt-c tt-dy'+(tod?' today':'')+'" data-tt="day" data-d="'+d+'" aria-label="آیکون '+dn+'">'+ttIco(t.dic[d])+dn+'</button>';
     t.rows.forEach(function(r,i){
       var c=ttCell(t,r.id,d),tm=(c&&c.h)||r.l;
-      h+='<button type="button" class="tt-c tt-x'+(c&&(c.t||c.c>-1||c.ic)?' on':'')+(tod?' today':'')+'" data-tt="cell" data-r="'+r.id+'" data-d="'+d+'"'+((c&&(c.c>-1||c.k>-1))?' style="'+(c.c>-1?'--tc:'+TT_COL[c.c]+';':'')+(c.k>-1?'--tmc:'+TT_TC[c.k]+';':'')+'"':'')+' aria-label="'+dn+'، پارت '+fa(i+1)+'، '+esc(tm)+(c&&c.t?'، '+esc(c.t):'')+'"><span class="tx">'+(c&&c.ic?ttIco(c.ic):'')+(c&&c.t?esc(c.t):'')+'</span><span class="tm">'+esc(tm)+'</span></button>';
+      h+='<button type="button" class="tt-c tt-x'+(c&&(c.t||c.c>-1||c.ic)?' on':'')+(c&&c.n?' hasn':'')+(tod?' today':'')+'" data-tt="cell" data-r="'+r.id+'" data-d="'+d+'"'+((c&&(c.c>-1||c.k>-1))?' style="'+(c.c>-1?'--tc:'+TT_COL[c.c]+';':'')+(c.k>-1?'--tmc:'+TT_TC[c.k]+';':'')+'"':'')+' aria-label="'+dn+'، پارت '+fa(i+1)+'، '+esc(tm)+(c&&c.t?'، '+esc(c.t):'')+'"><span class="tx">'+(c&&c.ic?ttIco(c.ic):'')+(c&&c.t?esc(c.t):'')+'</span><span class="tm">'+esc(tm)+'</span></button>';
     });
   });
   /* extra row under Friday: no date / day, free info cells (photo, name, weekly call, start, end, 2 free) */
@@ -3291,16 +3321,17 @@ function ttSheetWrap(inner,label){
 }
 function ttCellSheet(rid,d){
   var t=ttGet(),pi=t.rows.findIndex(function(r){return r.id===rid}),row=t.rows[pi];if(!row)return;
-  var cur=ttCell(t,rid,d)||{t:'',c:-1,h:'',k:-1,ic:''},st={c:cur.c,k:cur.k,ic:cur.ic,all:false};
+  var cur=ttCell(t,rid,d)||{t:'',c:-1,h:'',k:-1,ic:'',n:''},st={c:cur.c,k:cur.k,ic:cur.ic,all:false};
   var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>'+TT_DAYS[d]+' · پارت '+fa(pi+1)+'</h2><button type="button" data-e="close">بستن</button></div>'+
     '<textarea class="field" id="ttTx" rows="2" maxlength="80" placeholder="مثلاً: ریاضی، تست حد و پیوستگی" aria-label="متن خانه"></textarea>'+
+    '<div class="sec"><div class="sec-h"><b>اطلاعات</b></div><textarea class="field" id="ttNf" rows="3" maxlength="300" placeholder="توضیح برای دانش‌آموز: مبحث، صفحه، تعداد تست، منبع…  (در حالت مشاهده با زدن روی خانه نشان داده می‌شود)" aria-label="اطلاعات خانه"></textarea></div>'+
     '<div class="sec"><div class="sec-h"><b>ساعت این خانه</b></div><input class="field" id="ttTm" type="text" maxlength="14" placeholder="مثلاً ۱۶ تا ۱۸" aria-label="ساعت این خانه"></div>'+
     '<div class="sec"><div class="sec-h"><b>رنگ ساعت</b></div><div class="tt-sw"><button type="button" class="none" data-e="tcol" data-c="-1" aria-label="رنگ خودکار">'+icon('close')+'</button>'+TT_TC.map(function(c,i){return '<button type="button" data-e="tcol" data-c="'+i+'" style="--sc:'+c+'" aria-label="رنگ ساعت '+fa(i+1)+'"></button>'}).join('')+'</div></div>'+
-    '<div class="sec"><div class="sec-h"><b>درس‌ها</b></div><div class="chips">'+TT_SUB.map(function(s,i){return '<button type="button" class="chip" data-e="sub" data-i="'+i+'" style="--cc:'+TT_COL[s[1]]+'"><i></i>'+s[0]+'</button>'}).join('')+'</div></div>'+
+    '<div class="sec"><div class="sec-h"><b>درس‌ها</b></div><div class="chips">'+TT_SUB.map(function(s,i){return '<button type="button" class="chip" data-e="sub" data-i="'+i+'" style="--cc:'+TT_COL[s[1]]+'"><i></i>'+icon(s[2],'tti')+s[0]+'</button>'}).join('')+'</div></div>'+
     '<div class="sec"><div class="sec-h"><b>رنگ خانه</b></div><div class="tt-sw"><button type="button" class="none" data-e="col" data-c="-1" aria-label="بدون رنگ">'+icon('close')+'</button>'+TT_COL.map(function(c,i){return '<button type="button" data-e="col" data-c="'+i+'" style="--sc:'+c+'" aria-label="رنگ '+fa(i+1)+'"></button>'}).join('')+'</div></div>'+
     ttPick()+'<button type="button" class="chip tt-all" data-e="all" aria-pressed="false">همین را برای همه‌ی پارت‌های این روز بگذار</button>'+
     '<div class="tt-eb"><button type="button" class="tt-btn pri" data-e="save">ذخیره</button><button type="button" class="tt-btn" data-e="clear">پاک کردن خانه</button></div>','ویرایش خانه');
-  var w=sw.w,tx=w.querySelector('#ttTx'),tm=w.querySelector('#ttTm');tx.value=cur.t;tm.value=cur.h||row.l;
+  var w=sw.w,tx=w.querySelector('#ttTx'),tm=w.querySelector('#ttTm'),nf=w.querySelector('#ttNf');tx.value=cur.t;tm.value=cur.h||row.l;nf.value=cur.n||'';
   function paint(){[].forEach.call(w.querySelectorAll('[data-e="col"]'),function(b){b.setAttribute('aria-pressed',String(Number(b.dataset.c)===st.c))});[].forEach.call(w.querySelectorAll('[data-e="tcol"]'),function(b){b.setAttribute('aria-pressed',String(Number(b.dataset.c)===st.k))});ttPickPaint(w,st.ic)}
   paint();
   function hv(){var v=tm.value.trim().slice(0,14);return v===row.l?'':v}
@@ -3308,8 +3339,8 @@ function ttCellSheet(rid,d){
     var ids=st.all?t.rows.map(function(r){return r.id}):[rid];
     ids.forEach(function(p){
       var k=p+'_'+d,ex=t.cells[k]||{},keep=clr?'':(p===rid?h:(ex.h||'')),kk=clr?-1:(p===rid?st.k:(typeof ex.k==='number'?ex.k:-1));
-      var ic=clr?'':st.ic;
-      if(text||c>-1||keep||kk>-1||ic)t.cells[k]={t:text,c:c,h:keep,k:kk,ic:ic};else delete t.cells[k];
+      var ic=clr?'':st.ic,nn=clr?'':(p===rid?nf.value.trim().slice(0,300):(ex.n||''));
+      if(text||c>-1||keep||kk>-1||ic||nn)t.cells[k]={t:text,c:c,h:keep,k:kk,ic:ic,n:nn};else delete t.cells[k];
     });
     persist();ttRedraw();sw.close();
   }
@@ -3319,7 +3350,7 @@ function ttCellSheet(rid,d){
     else if(a==='sub'){
       var s=TT_SUB[Number(b.dataset.i)],v=tx.value.trim(),isSub=TT_SUB.some(function(x){return x[0]===v});
       if(!v||isSub)tx.value=s[0];else if(v.indexOf(s[0])!==0)tx.value=s[0]+' - '+v;
-      st.c=s[1];paint();
+      st.c=s[1];st.ic=s[2];paint();
     }
     else if(a==='col'){st.c=Number(b.dataset.c);paint()}
     else if(a==='tcol'){st.k=Number(b.dataset.c);paint()}
@@ -3674,7 +3705,27 @@ async function ttExport(){
   }catch(e){toast('ساخت عکس انجام نشد؛ دوباره تلاش کن',null,null,'warn')}
   ttBusy=false;if(btn)btn.disabled=false;
 }
-function openTTEditor(){
+/* view mode: a saved plan opens read-only; tapping a cell shows its lesson, time and info; "ویرایش برنامه" switches to editing */
+function ttSetView(v){
+  ttView=!!v;
+  if(!ttEl)return;
+  ttEl.classList.toggle('tt-view',ttView);
+  var inp=ttEl.querySelector('.tt-title');if(inp)inp.readOnly=ttView;
+  var s=ttEl.querySelector('.tt-ti small');if(s&&ttView&&!s.textContent)s.textContent='';
+  ttRedraw();
+}
+function ttCellView(rid,d){
+  var t=ttGet(),pi=t.rows.findIndex(function(r){return r.id===rid}),row=t.rows[pi];if(!row)return;
+  var c=ttCell(t,rid,d),tm=(c&&c.h)||row.l,ds=ttDates(t)[d];
+  var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>'+TT_DAYS[d]+(ds?' · '+esc(ds):'')+'</h2><button type="button" data-e="close">بستن</button></div>'+
+    '<div class="ttv">'+
+    '<div class="ttv-h"'+(c&&c.c>-1?' style="--tc:'+TT_COL[c.c]+'"':'')+'>'+(c&&c.ic?ttIco(c.ic,'tti ttv-ic'):'')+'<b>'+(c&&c.t?esc(c.t):'خانهٔ خالی')+'</b></div>'+
+    '<div class="ttv-r"><span>'+icon('clock','tti')+'ساعت درس: <b>'+esc(tm)+'</b></span><span>پارت '+fa(pi+1)+'</span></div>'+
+    '<div class="ttv-i"><small>اطلاعات</small><p>'+(c&&c.n?esc(c.n):'<em>اطلاعاتی برای این خانه نوشته نشده است.</em>')+'</p></div>'+
+    '</div><div class="tt-eb"><button type="button" class="tt-btn" data-e="close">بستن</button></div>','اطلاعات خانه');
+  sw.w.addEventListener('click',function(e){var b=e.target.closest('[data-e="close"]');if(b)sw.close()});
+}
+function openTTEditor(view){
   if(ttEl)return;
   var t=ttGet();ttBase=ttSnap();
   var w=document.createElement('div');w.className='tt-page';w.setAttribute('role','dialog');w.setAttribute('aria-modal','true');w.setAttribute('aria-label','کنکوریا');
@@ -3682,15 +3733,21 @@ function openTTEditor(){
     '<div class="tt-ti"><div class="tt-tr"><input class="tt-title" type="text" maxlength="40" aria-label="عنوان جدول" placeholder="عنوان جدول"><span class="vbadge">'+icon('star')+'ویژه</span></div><small></small></div>'+
     '<button type="button" class="round glass" data-tt="export" aria-label="خروجی عکس">'+icon('camera')+'</button></header>'+
     '<div class="tt-card"><div class="tt-scroll"></div></div>'+
-    '<div class="tt-foot"><button type="button" class="tt-btn tt-sv tt-ap" data-tt="apply" hidden>'+icon('calendar')+'اعمال کردن برنامه</button><button type="button" class="tt-btn pri tt-sv" data-tt="save">'+icon('check')+'ذخیره برنامه</button><button type="button" class="tt-btn" data-tt="export">'+icon('camera')+'خروجی عکس</button><button type="button" class="tt-btn" data-tt="download">'+icon('download')+'دانلود</button><button type="button" class="tt-btn bad" data-tt="clear">'+icon('trash')+'پاک کردن</button></div>';
+    '<div class="tt-foot"><button type="button" class="tt-btn pri tt-sv tt-vo" data-tt="edit">'+icon('edit')+'ویرایش برنامه</button><button type="button" class="tt-btn tt-sv tt-ap" data-tt="apply" hidden>'+icon('calendar')+'اعمال کردن برنامه</button><button type="button" class="tt-btn pri tt-sv tt-eo" data-tt="save">'+icon('check')+'ذخیره برنامه</button><button type="button" class="tt-btn" data-tt="export">'+icon('camera')+'خروجی عکس</button><button type="button" class="tt-btn" data-tt="download">'+icon('download')+'دانلود</button><button type="button" class="tt-btn bad tt-eo" data-tt="clear">'+icon('trash')+'پاک کردن</button></div>';
   document.body.appendChild(w);ttEl=w;
   document.documentElement.style.overflow='hidden';
   var inp=w.querySelector('.tt-title');inp.value=t.title;
   inp.addEventListener('input',function(){ttGet().title=inp.value.slice(0,40);persist()});
+  ttSetView(!!view);
   ttRedraw();
   w.addEventListener('click',function(e){
     var b=e.target.closest('[data-tt]');if(!b)return;var a=b.dataset.tt;
+    if(ttView&&(a==='cell'||a==='row'||a==='date'||a==='info'||a==='day'||a==='corner'||a==='save'||a==='clear')){
+      if(a==='cell')ttCellView(b.dataset.r,Number(b.dataset.d));
+      return;
+    }
     if(a==='close')ttTryClose();
+    else if(a==='edit')ttSetView(false);
     else if(a==='save')ttSave();
     else if(a==='cell')ttCellSheet(b.dataset.r,Number(b.dataset.d));
     else if(a==='row')ttRowSheet(b.dataset.r);
@@ -3709,7 +3766,7 @@ function openTTEditor(){
    profile.tt     = the plan being edited right now (working copy)
    profile.ttp    = saved plans [{id,name,upd,data}]  (name = the student's name)
    profile.ttCur  = id of the saved plan that profile.tt was opened from (null = new, unsaved) */
-var ttBase='',ttLs=null;
+var ttBase='',ttLs=null,ttView=false;
 function ttpClean(a){
   if(!Array.isArray(a))return [];
   var seen={};
@@ -3744,7 +3801,7 @@ function ttCommit(name){
   var nm=ttName(t);
   if(p){p.name=nm;p.upd=Date.now();p.data=ttClone(t)}
   else{p={id:uid(),name:nm,upd:Date.now(),data:ttClone(t)};pl.push(p);state.profile.ttCur=p.id}
-  ttBase=ttSnap();persist();ttRedraw();
+  ttBase=ttSnap();persist();ttSetView(true);
   toast('برنامه‌ی «'+nm+'» ذخیره شد',null,null,'ok');
 }
 function ttNameSheet(cb){
@@ -3777,13 +3834,13 @@ function ttGuard(fn){
 }
 function ttOpenPlan(id){
   var p=ttPlans().find(function(x){return x.id===id});if(!p)return;
-  ttGuard(function(){state.profile.tt=ttClone(p.data);state.profile.ttCur=id;persist();openTTEditor()});
+  ttGuard(function(){state.profile.tt=ttClone(p.data);state.profile.ttCur=id;persist();openTTEditor(true)});
 }
 function ttStartNew(name){
   ttGuard(function(){
     state.profile.tt=ttDef();state.profile.ttCur=null;
     if(name)ttGet().info[1]={t:String(name).slice(0,80),i:'',ic:'',z:1,s:1,x:0,y:0};
-    persist();openTTEditor();
+    persist();openTTEditor(false);
   });
 }
 function ttDelPlan(id){
@@ -3842,7 +3899,7 @@ function openTTList(){
     var b=e.target.closest('[data-ttl]');if(!b)return;var a=b.dataset.ttl;
     if(a==='close')closeTTList();
     else if(a==='open')ttOpenPlan(b.dataset.id);
-    else if(a==='draft')openTTEditor();
+    else if(a==='draft')openTTEditor(false);
     else if(a==='new')ttStartNew();
     else if(a==='newq')ttStartNew(w.querySelector('.ttl-q').value.trim());
     else if(a==='del')ttDelPlan(b.dataset.id);
