@@ -2077,12 +2077,13 @@ function askConfirm(o){
 var bk={el:null,t:null};
 function bkData(){return {app:'ario',v:1,at:new Date().toISOString(),tasks:state.tasks,profile:state.profile,cats:CATS,hist:state.hist}}
 function bkMsg(m,err){var e=bk.el&&bk.el.querySelector('.bkmsg');if(e){e.textContent=m;e.className='bkmsg'+(err?' err':'')}}
-function bkCap(n){var P=window.Capacitor&&window.Capacitor.Plugins;return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()&&P&&P[n])}
+function capGet(n){try{var C=window.Capacitor;if(!(C&&C.isNativePlatform&&C.isNativePlatform()))return null;return (C.Plugins&&C.Plugins[n])||(C.registerPlugin&&C.registerPlugin(n))||null}catch(e){return null}}
+function bkCap(n){return !!capGet(n)}
 async function bkExportFile(){
   var txt=JSON.stringify(bkData()),name='ario-backup-'+todayKey()+'.json';
   if(bkCap('Filesystem')&&bkCap('Share')){
     try{
-      var P=window.Capacitor.Plugins,r=await P.Filesystem.writeFile({path:name,data:txt,directory:'CACHE',encoding:'utf8'});
+      var P={Filesystem:capGet('Filesystem'),Share:capGet('Share')},r=await P.Filesystem.writeFile({path:name,data:txt,directory:'CACHE',encoding:'utf8'});
       await P.Share.share({title:'پشتیبان Ario',url:r.uri,dialogTitle:'ذخیره یا ارسال فایل پشتیبان'});
       bkMsg('فایل پشتیبان آماده شد.');return;
     }catch(e){if(/cancel/i.test(String(e&&e.message||e)))return}
@@ -2474,9 +2475,20 @@ async function voiceListen(prompt,btn){
   if(vcBusy)return '';vcBusy=true;
   try{
     if(SRN){
-      var pm=await SRN.requestPermissions();
-      if(pm&&pm.speechRecognition&&pm.speechRecognition!=='granted'){toast('اجازه‌ی میکروفون داده نشد',null,null,'warn');return ''}
-      var r=await SRN.start({language:'fa-IR',maxResults:1,prompt:prompt||'بگو…',partialResults:false,popup:true});
+      var pm=null;
+      try{pm=await SRN.checkPermissions()}catch(e0){}
+      if(!pm||pm.speechRecognition!=='granted'){try{pm=await SRN.requestPermissions()}catch(e0){}}
+      if(!pm||pm.speechRecognition!=='granted'){toast('اجازه‌ی میکروفون داده نشد. از تنظیمات گوشی > برنامه‌ها > Ario > مجوزها، میکروفون را روشن کن',null,null,'warn');return ''}
+      var av=null;try{av=await SRN.available()}catch(e0){}
+      if(av&&av.available===false){toast('سرویس تشخیص گفتار گوگل روی این گوشی پیدا نشد. برنامهٔ Google را نصب یا به‌روز کن، یا از میکروفون کیبورد استفاده کن',null,null,'warn');return ''}
+      if(btn)btn.classList.add('rec');
+      var vo={language:'fa-IR',maxResults:1,prompt:prompt||'بگو…',partialResults:false};
+      var r;
+      try{r=await SRN.start(Object.assign({popup:true},vo))}
+      catch(e1){
+        if(/cancel|no match|didn.?t|timeout|not understand/i.test(String((e1&&e1.message)||e1)))return '';
+        r=await SRN.start(Object.assign({popup:false},vo));
+      }
       return (r&&r.matches&&r.matches[0])||'';
     }
     var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -2485,10 +2497,15 @@ async function voiceListen(prompt,btn){
       var rec=new SR(),t='';rec.lang='fa-IR';rec.interimResults=false;rec.maxAlternatives=1;
       if(btn)btn.classList.add('rec');
       rec.onresult=function(ev){t=ev.results[0][0].transcript};
-      rec.onend=function(){res(t)};rec.onerror=function(){res(t)};
-      rec.start();
+      rec.onend=function(){res(t)};
+      rec.onerror=function(ev){
+        var c=ev&&ev.error||'';
+        var M={'not-allowed':'اجازه‌ی میکروفون داده نشد','service-not-allowed':'سرویس گفتار اجازه ندارد (این صفحه داخل برنامه‌ی اندروید اجرا نشده؟)','network':'اینترنت لازم است','no-speech':'صدایی شنیده نشد','audio-capture':'میکروفون پیدا نشد','language-not-supported':'زبان فارسی پشتیبانی نمی‌شود'};
+        if(c!=='aborted')toast((M[c]||'تشخیص گفتار کار نکرد')+' ['+c+']',null,null,'warn');
+        res(t)};
+      try{rec.start()}catch(e2){toast('تشخیص گفتار شروع نشد ('+String(e2&&e2.message||e2).slice(0,60)+')',null,null,'warn');res('')}
     });
-  }catch(e){if(SRN)toast('تشخیص گفتار روی این گوشی کار نکرد',null,null,'warn');return ''}
+  }catch(e){var em=String((e&&e.message)||e||'');if(SRN&&!/cancel|no match|didn.?t|timeout|not understand/i.test(em))toast('تشخیص گفتار کار نکرد'+(em?' ('+em.slice(0,80)+')':''),null,null,'warn');return ''}
   finally{vcBusy=false;if(btn)btn.classList.remove('rec')}
 }
 async function qaMic(){
@@ -3643,7 +3660,7 @@ async function ttShare(blob,name){
   if(bkCap('Filesystem')&&bkCap('Share')){
     try{
       var b64=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(String(fr.result).split(',')[1])};fr.onerror=rej;fr.readAsDataURL(blob)});
-      var PL=window.Capacitor.Plugins,r=await PL.Filesystem.writeFile({path:name,data:b64,directory:'CACHE'});
+      var PL={Filesystem:capGet('Filesystem'),Share:capGet('Share')},r=await PL.Filesystem.writeFile({path:name,data:b64,directory:'CACHE'});
       await PL.Share.share({title:'جدول برنامه هفتگی',url:r.uri,dialogTitle:'ذخیره یا ارسال عکس جدول'});
       return;
     }catch(e){if(/cancel/i.test(String(e&&e.message||e)))return}
@@ -3658,15 +3675,24 @@ async function ttShare(blob,name){
 }
 function ttIS(){try{var C=window.Capacitor;if(C&&C.isNativePlatform&&C.isNativePlatform())return (C.Plugins&&C.Plugins.ImageSave)||(C.registerPlugin&&C.registerPlugin('ImageSave'))||null}catch(e){}return null}
 /* straight to the gallery (Android: Pictures/Ario), or a normal browser download */
-async function ttSave(blob,name,lbl){
-  var P=ttIS();
-  if(P&&P.saveImage){
-    try{
-      var b64=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(String(fr.result).split(',')[1])};fr.onerror=rej;fr.readAsDataURL(blob)});
-      await P.saveImage({data:b64,name:name});
-      toast('عکس در گالری ذخیره شد (پوشه‌ی Pictures/Ario)',null,null,'ok');return;
-    }catch(e){}
-    return ttShare(blob,name);
+async function imgSave(blob,name,lbl){
+  var P=ttIS(),b64='',why='';
+  try{b64=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(String(fr.result).split(',')[1])};fr.onerror=rej;fr.readAsDataURL(blob)})}catch(e){}
+  if(P&&b64){
+    /* 1) straight into the gallery */
+    if(P.saveImage){
+      try{await P.saveImage({data:b64,name:name});toast('عکس در گالری ذخیره شد (پوشه‌ی Pictures/Ario)',null,null,'ok');return}
+      catch(e){why=String(e&&e.message||e)}
+    }
+    /* 2) a plain file in Documents/Ario */
+    var FS=capGet('Filesystem');
+    if(FS){
+      try{await FS.writeFile({path:'Ario/'+name,data:b64,directory:'DOCUMENTS',recursive:true});toast('عکس در پوشه‌ی Documents/Ario ذخیره شد',null,null,'ok');return}
+      catch(e){why+=' | '+String(e&&e.message||e)}
+    }
+    /* 3) the system share sheet (save to Drive, send in a chat, ...) */
+    try{await ttShare(blob,name);return}catch(e){why+=' | '+String(e&&e.message||e)}
+    toast('ذخیره‌ی عکس انجام نشد ('+why.slice(0,90)+')',null,null,'warn');return;
   }
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
   document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},4000);
@@ -3677,7 +3703,7 @@ async function ttDownload(){
   var btn=ttEl&&ttEl.querySelector('[data-tt="download"]');if(btn)btn.disabled=true;
   try{
     var blob=await ttMakeImage();if(!blob)throw new Error('empty');
-    await ttSave(blob,'ario-timetable-'+todayKey()+'.png');
+    await imgSave(blob,'ario-timetable-'+todayKey()+'.png');
   }catch(e){toast('ساخت عکس انجام نشد؛ دوباره تلاش کن',null,null,'warn')}
   ttBusy=false;if(btn)btn.disabled=false;
 }
@@ -3700,7 +3726,7 @@ async function ttExport(){
       var b=e.target.closest('[data-e]');if(!b)return;
       if(b.dataset.e==='close')closeAll();
       else if(b.dataset.e==='share')ttShare(blob,name);
-      else if(b.dataset.e==='dl')ttSave(blob,name);
+      else if(b.dataset.e==='dl')imgSave(blob,name);
     });
   }catch(e){toast('ساخت عکس انجام نشد؛ دوباره تلاش کن',null,null,'warn')}
   ttBusy=false;if(btn)btn.disabled=false;
@@ -3733,7 +3759,7 @@ function openTTEditor(view){
     '<div class="tt-ti"><div class="tt-tr"><input class="tt-title" type="text" maxlength="40" aria-label="عنوان جدول" placeholder="عنوان جدول"><span class="vbadge">'+icon('star')+'ویژه</span></div><small></small></div>'+
     '<button type="button" class="round glass" data-tt="export" aria-label="خروجی عکس">'+icon('camera')+'</button></header>'+
     '<div class="tt-card"><div class="tt-scroll"></div></div>'+
-    '<div class="tt-foot"><button type="button" class="tt-btn pri tt-sv tt-vo" data-tt="edit">'+icon('edit')+'ویرایش برنامه</button><button type="button" class="tt-btn tt-sv tt-ap" data-tt="apply" hidden>'+icon('calendar')+'اعمال کردن برنامه</button><button type="button" class="tt-btn pri tt-sv tt-eo" data-tt="save">'+icon('check')+'ذخیره برنامه</button><button type="button" class="tt-btn" data-tt="export">'+icon('camera')+'خروجی عکس</button><button type="button" class="tt-btn" data-tt="download">'+icon('download')+'دانلود</button><button type="button" class="tt-btn bad tt-eo" data-tt="clear">'+icon('trash')+'پاک کردن</button></div>';
+    '<div class="tt-foot"><button type="button" class="tt-btn pri tt-sv tt-vo" data-tt="edit">'+icon('edit')+'ویرایش برنامه</button><button type="button" class="tt-btn tt-sv tt-ap" data-tt="apply" hidden>'+icon('calendar')+'اعمال کردن برنامه</button><button type="button" class="tt-btn pri tt-sv tt-eo" data-tt="save">'+icon('check')+'ذخیره برنامه</button><button type="button" class="tt-btn" data-tt="export">'+icon('camera')+'خروجی عکس</button><button type="button" class="tt-btn" data-tt="download">'+icon('download')+'دانلود</button><button type="button" class="tt-btn tt-eo" data-tt="scan">'+icon('camera')+'اسکن عکس</button><button type="button" class="tt-btn bad tt-eo" data-tt="clear">'+icon('trash')+'پاک کردن</button></div>';
   document.body.appendChild(w);ttEl=w;
   document.documentElement.style.overflow='hidden';
   var inp=w.querySelector('.tt-title');inp.value=t.title;
@@ -3742,7 +3768,7 @@ function openTTEditor(view){
   ttRedraw();
   w.addEventListener('click',function(e){
     var b=e.target.closest('[data-tt]');if(!b)return;var a=b.dataset.tt;
-    if(ttView&&(a==='cell'||a==='row'||a==='date'||a==='info'||a==='day'||a==='corner'||a==='save'||a==='clear')){
+    if(ttView&&(a==='cell'||a==='row'||a==='date'||a==='info'||a==='day'||a==='corner'||a==='save'||a==='clear'||a==='scan')){
       if(a==='cell')ttCellView(b.dataset.r,Number(b.dataset.d));
       return;
     }
@@ -3756,12 +3782,216 @@ function openTTEditor(view){
     else if(a==='day'){var dd=Number(b.dataset.d),tt=ttGet();ttIconSheet('آیکون '+TT_DAYS[dd],tt.dic[dd],function(n){tt.dic[dd]=n})}
     else if(a==='corner'){var cn=Number(b.dataset.n),tc=ttGet();ttIconSheet('آیکون ستون '+(cn?'روز':'تاریخ'),tc.cic[cn],function(n){tc.cic[cn]=n})}
     else if(a==='export')ttExport();
+    else if(a==='scan')scPickFile();
     else if(a==='download')ttDownload();
     else if(a==='clear')ttClearAll();
     else if(a==='apply')ttApplyPlan();
   });
   requestAnimationFrame(function(){requestAnimationFrame(function(){w.classList.add('open')})});
 }
+/* ---------- scan a photo of a table: offline text recognition, animation, then a review screen ----------
+   Grid = 8 rows (header + 7 days) x 9 columns (date, day, parts 1-7), same as the picture the app exports (right-to-left).
+   Other tables work too: line counts are detected; the review screen lets you fix anything before it is applied. */
+var scEl=null,scRun=0;
+function scImage(file,maxd){
+  return new Promise(function(res,rej){
+    var u=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){
+      var k=Math.min(1,maxd/Math.max(im.naturalWidth,im.naturalHeight)),cv=document.createElement('canvas');
+      cv.width=Math.max(1,Math.round(im.naturalWidth*k));cv.height=Math.max(1,Math.round(im.naturalHeight*k));
+      cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(u);res(cv);
+    };
+    im.onerror=function(){URL.revokeObjectURL(u);rej(new Error('img'))};
+    im.src=u;
+  });
+}
+function scBin(cv){
+  var w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data,g=new Uint8Array(w*h),i,x,y,s;
+  for(i=0;i<w*h;i++)g[i]=(d[i*4]*77+d[i*4+1]*150+d[i*4+2]*29)>>8;
+  var W=w+1,I=new Uint32Array(W*(h+1));
+  for(y=0;y<h;y++){s=0;for(x=0;x<w;x++){s+=g[y*w+x];I[(y+1)*W+x+1]=I[y*W+x+1]+s}}
+  var r=Math.max(10,Math.round(Math.min(w,h)/30)),bin=new Uint8Array(w*h);
+  for(y=0;y<h;y++){
+    var y0=Math.max(0,y-r),y1=Math.min(h,y+r+1);
+    for(x=0;x<w;x++){
+      var x0=Math.max(0,x-r),x1=Math.min(w,x+r+1),m=(I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0])/((x1-x0)*(y1-y0));
+      bin[y*w+x]=g[y*w+x]<m-14?1:0;
+    }
+  }
+  return {w:w,h:h,bin:bin};
+}
+/* centres of long straight lines (horiz: rows of the picture that are mostly ink) */
+function scLines(b,horiz){
+  var len=horiz?b.h:b.w,span=horiz?b.w:b.h,p=new Float32Array(len),i,j,c,mx=0;
+  for(i=0;i<len;i++){
+    c=0;
+    if(horiz){for(j=0;j<span;j++)c+=b.bin[i*b.w+j]}else{for(j=0;j<span;j++)c+=b.bin[j*b.w+i]}
+    p[i]=c/span;if(p[i]>mx)mx=p[i];
+  }
+  var thr=Math.max(.22,mx*.6),out=[],s=-1,e=0,gap=0,on;
+  for(i=0;i<=len;i++){
+    on=i<len&&p[i]>=thr;
+    if(on){if(s<0)s=i;gap=0;e=i}
+    else if(s>=0){gap++;if(gap>2||i===len){out.push((s+e)/2);s=-1}}
+  }
+  return out;
+}
+function scWin(L,n){
+  var best=null,bv=1e9,i,j,sp,m,v;
+  for(i=0;i+n<L.length;i++){
+    sp=[];m=0;
+    for(j=0;j<n;j++){sp.push(L[i+j+1]-L[i+j]);m+=sp[j]}
+    m/=n;if(m<=0)continue;v=0;
+    for(j=0;j<n;j++)v+=(sp[j]-m)*(sp[j]-m);
+    v=Math.sqrt(v/n)/m;
+    if(v<bv){bv=v;best=L.slice(i,i+n+1)}
+  }
+  return best?{b:best,v:bv}:null;
+}
+/* choose the cell boundaries on one axis: real detected lines when they form an even grid, otherwise an even split */
+function scAxis(L,cands,total){
+  var best=null,i,r;
+  cands.forEach(function(n){var q=scWin(L,n);if(q&&q.v<.22&&(!best||q.v<best.v-.03))best={n:n,b:q.b,v:q.v,real:true}});
+  if(best)return best;
+  var n=cands[0],a=0,b=total,o=[];
+  if(L.length>1&&L[L.length-1]-L[0]>total*.4){a=L[0];b=L[L.length-1]}
+  for(i=0;i<=n;i++)o.push(a+(b-a)*i/n);
+  return {n:n,b:o,v:1,real:false};
+}
+function scClean(s){
+  return String(s||'').replace(/[|\\_~\[\]{}<>«»=¦]/g,' ').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/\s+/g,' ').trim().slice(0,80);
+}
+function scGood(t,conf){
+  if(!t||t.length<2)return false;
+  var letters=(t.match(/[؀-ۿA-Za-z0-9۰-۹]/g)||[]).length;
+  return letters>=2&&letters/t.length>=.5&&conf>=25;
+}
+/* the 7x7 values [day][part] out of the raw grid; rtl = day/date labels on the right, part 1 next to them */
+function scMap(raw,rows,cols,rtl){
+  var out=[],r0=Math.max(0,rows-7),d,p,r,c,cell;
+  for(d=0;d<7;d++){
+    out[d]=[];r=r0+d;
+    for(p=0;p<7;p++){
+      c=rtl?Math.min(cols-1,6)-p:Math.max(0,cols-7)+p;
+      cell=(r<rows&&c>=0&&c<cols&&raw[r])?raw[r][c]:null;
+      out[d][p]=cell||{t:'',q:100};
+    }
+  }
+  return out;
+}
+async function scWorker(onLog){
+  var base=new URL('ocr/',location.href).href;
+  if(!window.Tesseract){
+    await new Promise(function(res,rej){var s=document.createElement('script');s.src=base+'tesseract.min.js';s.onload=res;s.onerror=function(){rej(new Error('ocr-missing'))};document.head.appendChild(s)});
+  }
+  var w=await window.Tesseract.createWorker('fas',1,{workerPath:base+'worker.min.js',corePath:base,langPath:base+'lang',workerBlobURL:false,gzip:true,logger:onLog});
+  await w.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
+  return w;
+}
+function scPickFile(){
+  if(scEl)return;
+  var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';
+  inp.addEventListener('change',function(){var f=inp.files&&inp.files[0];inp.remove();if(f)scStart(f)});
+  document.body.appendChild(inp);inp.click();
+}
+async function scStart(file){
+  var worker=null,dead=false;
+  var w=document.createElement('div');w.className='sc-page';w.setAttribute('role','dialog');w.setAttribute('aria-modal','true');w.setAttribute('aria-label','اسکن جدول');
+  w.innerHTML='<header class="sc-top"><button type="button" class="round glass" data-sc="cancel" aria-label="بستن">'+icon('close')+'</button><h2>اسکن عکس جدول</h2><span></span></header>'+
+    '<div class="sc-body"><div class="sc-stage"><img alt="عکس جدول"><canvas class="sc-ov"></canvas><i class="sc-line"></i></div><div class="sc-st" aria-live="polite">در حال آماده‌سازی…</div><div class="sc-bar"><i></i></div></div>';
+  document.body.appendChild(w);scEl=w;
+  function stop(){dead=true;if(worker){try{worker.terminate()}catch(e){}worker=null}if(w.isConnected)w.remove();if(scEl===w)scEl=null}
+  w.querySelector('[data-sc="cancel"]').addEventListener('click',stop);
+  var st=w.querySelector('.sc-st'),bar=w.querySelector('.sc-bar i'),img=w.querySelector('img'),ov=w.querySelector('.sc-ov');
+  function say(t,p){st.textContent=t;if(p!=null)bar.style.width=Math.round(p*100)+'%'}
+  function tick(){return new Promise(function(r){setTimeout(r,40)})}
+  try{
+    var cv=await scImage(file,1600);if(dead)return;
+    await new Promise(function(r){img.onload=r;img.src=cv.toDataURL('image/jpeg',.85)});
+    ov.width=cv.width;ov.height=cv.height;
+    say('در حال پیدا کردن خطوط جدول…',.05);await tick();if(dead)return;
+    var b=scBin(cv),ax=scAxis(scLines(b,false),[9,8,7,10],cv.width),ay=scAxis(scLines(b,true),[8,7,9],cv.height);
+    var cols=ax.n,rows=ay.n,X=ax.b,Y=ay.b,octx=ov.getContext('2d');
+    octx.lineWidth=Math.max(2,cv.width/400);octx.strokeStyle='rgba(47,139,255,.95)';
+    X.forEach(function(x){octx.beginPath();octx.moveTo(x,Y[0]);octx.lineTo(x,Y[Y.length-1]);octx.stroke()});
+    Y.forEach(function(y){octx.beginPath();octx.moveTo(X[0],y);octx.lineTo(X[X.length-1],y);octx.stroke()});
+    say('در حال آماده‌سازی موتور تشخیص متن…',.1);await tick();if(dead)return;
+    worker=await scWorker(function(m){if(!dead&&m&&m.status&&/language/.test(m.status)&&typeof m.progress==='number')say('در حال بارگیری زبان فارسی…',.1+.05*m.progress)});
+    if(dead){stop();return}
+    var raw=[],r0=Math.max(0,rows-7),total=(rows-r0)*cols,done=0,r,c;
+    for(r=0;r<rows;r++)raw[r]=[];
+    for(r=r0;r<rows&&!dead;r++){
+      for(c=0;c<cols&&!dead;c++){
+        var cw=X[c+1]-X[c],ch=Y[r+1]-Y[r],ix=Math.max(4,Math.min(cw,ch)*.07),sx=X[c]+ix,sy=Y[r]+ix,sw=cw-2*ix,sh=ch-2*ix,cell={t:'',q:100};
+        if(sw>8&&sh>8){
+          var ink=0,x,y;
+          for(y=Math.round(sy);y<Math.round(sy+sh);y++)for(x=Math.round(sx);x<Math.round(sx+sw);x++)ink+=b.bin[y*b.w+x];
+          if(ink/(sw*sh)>.008){
+            var k=Math.max(1,Math.min(4,120/sh)),oc=document.createElement('canvas');oc.width=Math.round(sw*k)+24;oc.height=Math.round(sh*k)+24;
+            var cx=oc.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,oc.width,oc.height);cx.filter='grayscale(1) contrast(1.35)';
+            cx.drawImage(cv,sx,sy,sw,sh,12,12,Math.round(sw*k),Math.round(sh*k));
+            try{
+              var rs=await worker.recognize(oc),t=scClean(rs&&rs.data&&rs.data.text),q=(rs&&rs.data&&rs.data.confidence)||0;
+              if(scGood(t,q))cell={t:t,q:q};
+            }catch(e2){}
+          }
+        }
+        raw[r][c]=cell;done++;
+        octx.fillStyle=cell.t?'rgba(34,180,91,.32)':'rgba(120,130,160,.16)';octx.fillRect(X[c]+2,Y[r]+2,cw-4,ch-4);
+        say('در حال اسکن و خواندن خانه‌ها… '+fa(done)+' از '+fa(total),.15+.8*done/total);
+      }
+    }
+    if(dead)return;
+    try{await worker.terminate()}catch(e3){}worker=null;
+    say('اسکن تمام شد',1);await new Promise(function(r){setTimeout(r,450)});
+    if(dead)return;
+    scReview(w,raw,rows,cols,ax.real&&ay.real);
+  }catch(err){
+    var m=String(err&&err.message||err);
+    if(!dead){
+      toast(/ocr-missing|NetworkError|Failed to fetch|importScripts/i.test(m)?'بستهٔ تشخیص متن داخل این نسخه نیست. نسخه‌ی تازه را از GitHub بساز':'اسکن انجام نشد ('+m.slice(0,70)+')',null,null,'warn');
+      stop();
+    }
+  }
+}
+function scReview(w,raw,rows,cols,exact){
+  var rtl=true,body=w.querySelector('.sc-body'),vals=scMap(raw,rows,cols,rtl);
+  function grid(){
+    var h='<div class="sc-g"><div class="sc-h"></div>',p,d;
+    for(p=0;p<7;p++)h+='<div class="sc-h">پارت '+fa(p+1)+'</div>';
+    for(d=0;d<7;d++){
+      h+='<div class="sc-d">'+TT_DAYS[d]+'</div>';
+      for(p=0;p<7;p++){var v=vals[d][p];h+='<textarea class="sc-c'+(v.t&&v.q<60?' low':'')+'" rows="2" maxlength="80" data-d="'+d+'" data-p="'+p+'" aria-label="'+TT_DAYS[d]+' پارت '+fa(p+1)+'">'+esc(v.t)+'</textarea>'}
+    }
+    return h+'</div>';
+  }
+  function count(){var n=0;vals.forEach(function(r){r.forEach(function(v){if(v.t)n++})});return n}
+  function paint(){
+    body.innerHTML='<p class="sc-note">'+(count()?fa(count())+' خانه خوانده شد. ':'چیزی خوانده نشد. ')+'خانه‌های زردرنگ را بیشتر نگاه کن، چون تشخیص‌شان کم‌اطمینان‌تر بود. هر خانه را می‌شود همین‌جا درست کرد.'+(exact?'':' خطوط جدول در عکس دقیق پیدا نشد و خانه‌ها یک‌اندازه فرض شدند؛ اگر جای نوشته‌ها اشتباه است، عکس را صاف‌تر و از نزدیک‌تر بگیر.')+'</p>'+
+      '<div class="sc-sc">'+grid()+'</div>'+
+      '<div class="sc-act"><button type="button" class="tt-btn pri" data-sc="apply">'+icon('check')+'اعمال روی جدول</button>'+
+      '<button type="button" class="tt-btn" data-sc="flip">'+icon('edit')+'ترتیب پارت‌ها برعکس است</button>'+
+      '<button type="button" class="tt-btn bad" data-sc="cancel">انصراف</button></div>';
+  }
+  paint();
+  w.addEventListener('click',function(e){
+    var b=e.target.closest('[data-sc]');if(!b)return;var a=b.dataset.sc;
+    if(a==='cancel'){w.remove();if(scEl===w)scEl=null}
+    else if(a==='flip'){rtl=!rtl;vals=scMap(raw,rows,cols,rtl);paint();toast(rtl?'ترتیب راست‌به‌چپ':'ترتیب چپ‌به‌راست',null,null,'info')}
+    else if(a==='apply'){
+      var tas=w.querySelectorAll('textarea.sc-c'),t=ttGet(),old=JSON.stringify(t.cells),n=0;
+      [].forEach.call(tas,function(ta){
+        var tx=scClean(ta.value);if(!tx)return;
+        var row=t.rows[Number(ta.dataset.p)];if(!row)return;
+        var k=row.id+'_'+ta.dataset.d,c=t.cells[k]&&typeof t.cells[k]==='object'?t.cells[k]:{};
+        c.t=tx;t.cells[k]=c;n++;
+      });
+      persist();ttRedraw();w.remove();if(scEl===w)scEl=null;
+      toast(n?fa(n)+' خانه در جدول گذاشته شد':'خانه‌ای برای گذاشتن نبود',n?'بازگردانی':null,n?function(){t.cells=JSON.parse(old);persist();ttRedraw()}:null,n?'ok':'info');
+    }
+  });
+}
+
 /* ---------- Konkuria: many saved plans, one per student ----------
    profile.tt     = the plan being edited right now (working copy)
    profile.ttp    = saved plans [{id,name,upd,data}]  (name = the student's name)
@@ -4392,7 +4622,7 @@ async function rpImage(src,key,btn){
       var b=e.target.closest('[data-e]');if(!b)return;
       if(b.dataset.e==='close')closeAll();
       else if(b.dataset.e==='copy')rpCopyImg(blob,b);
-      else if(b.dataset.e==='dl')ttSave(blob,name,'عکس گزارش');
+      else if(b.dataset.e==='dl')imgSave(blob,name,'عکس گزارش');
     });
   }catch(e){toast('ساخت عکس انجام نشد؛ دوباره تلاش کن',null,null,'warn')}
   rpImgBusy=false;if(btn&&btn.isConnected){btn.disabled=false;btn.innerHTML=o}
@@ -4814,7 +5044,7 @@ actions.rkRep=async function(){
   if(rkBusy)return;
   if(!rkComp(rkD().cur)){toast('اول درصد چند درس را وارد کن',null,null,'warn');return}
   rkBusy=true;
-  try{var b=await rkMakeImage();if(!b)throw new Error('e');await ttSave(b,'ario-rank-'+todayKey()+'.png','گزارش رتبه')}
+  try{var b=await rkMakeImage();if(!b)throw new Error('e');await imgSave(b,'ario-rank-'+todayKey()+'.png','گزارش رتبه')}
   catch(er){toast('ساخت گزارش انجام نشد؛ دوباره تلاش کن',null,null,'warn')}
   rkBusy=false;
 };

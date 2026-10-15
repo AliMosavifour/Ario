@@ -1,6 +1,9 @@
 package __APPID__;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.ContentValues;
 import android.net.Uri;
 import android.os.Build;
@@ -14,9 +17,13 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import androidx.core.content.FileProvider;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 
-/** Saves a PNG straight into the phone gallery (Pictures/Ario). Android 10+ needs no permission. */
+/** Saves a PNG straight into the phone gallery (Pictures/Ario) and copies a PNG to the clipboard. */
 @CapacitorPlugin(name = "ImageSave")
 public class ImageSavePlugin extends Plugin {
 
@@ -58,6 +65,31 @@ public class ImageSavePlugin extends Plugin {
             JSObject res = new JSObject();
             res.put("uri", uri.toString());
             call.resolve(res);
+        } catch (Exception e) {
+            call.reject(String.valueOf(e.getMessage()));
+        }
+    }
+
+    /** Puts the picture itself (not text) on the clipboard so it can be pasted into chats and notes. */
+    @PluginMethod
+    public void copyImage(PluginCall call) {
+        String data = call.getString("data");
+        if (data == null || data.isEmpty()) {
+            call.reject("no data");
+            return;
+        }
+        try {
+            byte[] bytes = Base64.decode(data, Base64.DEFAULT);
+            File dir = new File(getContext().getCacheDir(), "clip");
+            if (!dir.exists()) dir.mkdirs();
+            File f = new File(dir, "ario-report.png");
+            FileOutputStream fo = new FileOutputStream(f);
+            fo.write(bytes);
+            fo.close();
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+            ClipboardManager cm = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newUri(getContext().getContentResolver(), "Ario", uri));
+            call.resolve();
         } catch (Exception e) {
             call.reject(String.valueOf(e.getMessage()));
         }

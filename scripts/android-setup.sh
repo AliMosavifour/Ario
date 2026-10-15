@@ -18,6 +18,12 @@ add_perm POST_NOTIFICATIONS
 add_perm SCHEDULE_EXACT_ALARM
 add_perm RECEIVE_BOOT_COMPLETED
 add_perm VIBRATE
+add_perm RECORD_AUDIO
+
+# Android 11+: let the app find the speech recognizer.
+if ! grep -q 'android.speech.RecognitionService' "$MAN"; then
+  sed -i 's#<application#<queries><intent><action android:name="android.speech.RecognitionService" /></intent><intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent></queries>\n    <application#' "$MAN"
+fi
 
 # Make sure the app (and its notifications) can lay out right-to-left.
 if ! grep -q 'android:supportsRtl' "$MAN"; then
@@ -35,4 +41,10 @@ cat > "$RES/drawable/ic_stat_barnameyar.xml" <<'XML'
       android:pathData="M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.9,2 2,2zM18,16v-5c0,-3.07 -1.64,-5.64 -4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 6,11v5l-2,2v1h16v-1l-2,-2z"/>
 </vector>
 XML
+# Big app icon shown inside notifications.
+mkdir -p "$RES/drawable-nodpi"
+cp icons/mipmap-xxhdpi/ic_launcher.png "$RES/drawable-nodpi/ic_notif_large.png"
 echo "Android notification setup applied."
+
+# Fail the build loudly if the microphone permission did not make it into the manifest.
+grep -q "android.permission.RECORD_AUDIO" "$MAN" || { echo "RECORD_AUDIO missing from manifest" >&2; exit 1; }

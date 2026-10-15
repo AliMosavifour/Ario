@@ -1300,3 +1300,27 @@ button.pbadge{border:0;font:inherit;font-size:12.5px;cursor:pointer}
 .ttv-i small{display:block;margin-bottom:6px;font-size:12.5px;font-weight:700;color:var(--fg2)}
 .ttv-i p{margin:0;font-size:15px;line-height:1.9;white-space:pre-wrap;word-break:break-word}
 .ttv-i em{color:var(--fg3);font-style:normal}
+
+/* ---------- table photo scan ---------- */
+.sc-page{position:fixed;inset:0;z-index:75;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);padding-top:env(safe-area-inset-top,0px);overflow:hidden}
+.sc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px}
+.sc-top h2{font-size:17px;margin:0;font-weight:700}
+.sc-top>span{width:44px}
+.sc-body{flex:1;min-height:0;overflow:auto;padding:6px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.sc-stage{position:relative;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 10px 30px rgba(20,30,70,.28)}
+.sc-stage img{display:block;width:100%;height:auto;filter:brightness(.92)}
+.sc-ov{position:absolute;inset:0;width:100%;height:100%}
+.sc-line{position:absolute;inset-inline:0;top:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent);box-shadow:0 0 22px 7px color-mix(in srgb,var(--accent) 65%,transparent);animation:scsweep 1.8s ease-in-out infinite alternate}
+@keyframes scsweep{from{top:0}to{top:calc(100% - 3px)}}
+.sc-st{text-align:center;font-weight:600;font-size:15px}
+.sc-bar{height:8px;border-radius:99px;background:var(--field);overflow:hidden}
+.sc-bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .25s}
+.sc-note{font-size:13.5px;color:var(--fg2);line-height:1.9;margin:0}
+.sc-sc{overflow:auto;border-radius:16px;border:1px solid var(--sep);background:var(--glass2)}
+.sc-g{display:grid;grid-template-columns:72px repeat(7,minmax(108px,1fr));min-width:max-content}
+.sc-h,.sc-d{display:grid;place-items:center;padding:9px 4px;font-size:12.5px;font-weight:700;background:var(--field)}
+.sc-c{width:100%;min-height:60px;border:0;border-top:1px solid var(--sep);border-inline-start:1px solid var(--sep);padding:7px 8px;font:inherit;font-size:13px;line-height:1.6;background:transparent;color:var(--fg);resize:none;outline:none}
+.sc-c:focus{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.sc-c.low{background:rgba(255,184,0,.2)}
+.sc-act{display:grid;gap:10px}
+@media (prefers-reduced-motion:reduce){.sc-line{animation:none;top:50%}}

@@ -11,7 +11,7 @@ fi
 APPID=$(python3 -c "import json;print(json.load(open('capacitor.config.json'))['appId'])")
 JDIR="android/app/src/main/java/$(echo "$APPID" | tr . /)"
 mkdir -p "$JDIR"
-for f in MainActivity WidgetBridgePlugin ArioWidgetProvider AppLockPlugin ImageSavePlugin; do
+for f in MainActivity WidgetBridgePlugin ArioWidgetProvider AppLockPlugin ImageSavePlugin FocusNotifyPlugin ArioNotifyPlugin ArioNotifyCore ArioNotifyReceiver; do
   sed "s/__APPID__/$APPID/g" "native/java/$f.java" > "$JDIR/$f.java"
 done
 cp -r native/res/. android/app/src/main/res/
@@ -27,6 +27,23 @@ rec = '''
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/ario_widget_info" />
+        </receiver>
+    '''
+s = s.replace("</application>", rec + "</application>", 1)
+open(p, "w", encoding="utf8").write(s)
+PY
+fi
+if ! grep -q "ArioNotifyReceiver" "$MAN"; then
+  python3 - "$MAN" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf8").read()
+rec = '''
+        <receiver android:name=".ArioNotifyReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
     '''
 s = s.replace("</application>", rec + "</application>", 1)
