@@ -7,21 +7,31 @@ ESB="npx --no-install esbuild"
 $ESB src/js/app.js --minify --target=chrome80 --legal-comments=none --charset=utf8 --outfile=www/js/app.js
 $ESB src/css/app.css --minify --target=chrome80 --legal-comments=none --charset=utf8 --outfile=www/css/app.css
 
-# Offline text recognition for "اسکن عکس جدول": the engine and the Persian language file are copied into www/ocr
+# ---- Offline text recognition for "اسکن عکس جدول": engine + Persian language file go into www/ocr ----
 OCR=www/ocr
-mkdir -p "$OCR/lang"
-if [ -f node_modules/tesseract.js/dist/tesseract.min.js ]; then
-  cp node_modules/tesseract.js/dist/tesseract.min.js node_modules/tesseract.js/dist/worker.min.js "$OCR/"
-  ls node_modules/tesseract.js-core/tesseract-core*lstm*.js >/dev/null 2>&1 && cp node_modules/tesseract.js-core/tesseract-core*lstm*.js "$OCR/" || cp node_modules/tesseract.js-core/tesseract-core*.js "$OCR/"
+rm -rf "$OCR"; mkdir -p "$OCR/lang"
+fail() { echo "ERROR (table scan): $1" >&2; exit 1; }
+
+[ -f node_modules/tesseract.js/dist/tesseract.min.js ] || fail "tesseract.js is not installed. Run: npm install"
+cp node_modules/tesseract.js/dist/tesseract.min.js node_modules/tesseract.js/dist/worker.min.js "$OCR/"
+
+CORE=$(ls node_modules/tesseract.js-core/tesseract-core*lstm*.js 2>/dev/null || true)
+[ -n "$CORE" ] || CORE=$(ls node_modules/tesseract.js-core/tesseract-core*.js 2>/dev/null || true)
+[ -n "$CORE" ] || fail "tesseract.js-core files were not found in node_modules"
+for f in $CORE; do cp "$f" "$OCR/"; done
+
+# Persian language file: 1) GitHub (tessdata_fast)  2) the npm package @tesseract.js-data/fas
+if curl -fL --retry 3 --max-time 120 -o "$OCR/lang/fas.traineddata" "https://github.com/tesseract-ocr/tessdata_fast/raw/main/fas.traineddata" && [ -s "$OCR/lang/fas.traineddata" ]; then
+  gzip -f -9 "$OCR/lang/fas.traineddata"
 else
-  echo "WARNING: tesseract.js is not installed (run npm install); table scan will be unavailable" >&2
+  echo "GitHub download failed, trying the npm package..." >&2
+  rm -f "$OCR/lang/fas.traineddata"
+  npm install --no-save --no-audit --no-fund @tesseract.js-data/fas >/dev/null 2>&1 || true
+  SRC=$(find node_modules/@tesseract.js-data/fas -name 'fas.traineddata.gz' 2>/dev/null | sort | grep -m1 'best_int' || true)
+  [ -n "$SRC" ] || SRC=$(find node_modules/@tesseract.js-data/fas -name 'fas.traineddata.gz' 2>/dev/null | sort | head -n1 || true)
+  [ -n "$SRC" ] || fail "could not get the Persian language file (fas.traineddata)"
+  cp "$SRC" "$OCR/lang/fas.traineddata.gz"
 fi
-if [ ! -s "$OCR/lang/fas.traineddata.gz" ]; then
-  if curl -fL --retry 3 -o "$OCR/lang/fas.traineddata" "https://github.com/tesseract-ocr/tessdata_fast/raw/main/fas.traineddata"; then
-    gzip -f -9 "$OCR/lang/fas.traineddata"
-  else
-    echo "WARNING: could not download the Persian language file; table scan will be unavailable" >&2
-    rm -f "$OCR/lang/fas.traineddata"
-  fi
-fi
+[ -s "$OCR/lang/fas.traineddata.gz" ] || fail "fas.traineddata.gz is empty"
+echo "OCR files:"; ls -la "$OCR" "$OCR/lang"
 echo "web files built"

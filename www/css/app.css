@@ -91,7 +91,7 @@ h1,h2,h3,p{margin:0}
 .nc-x .ic{width:17px;height:17px}
 .nc-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:grid;align-content:start;gap:9px;padding:4px 12px 16px}
 .ni{position:relative;display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:22px;background:var(--glass2);border:1px solid var(--edge);box-shadow:var(--hi);transition:opacity .22s,transform .22s}
-.ni.gone{opacity:0;transform:translateX(30px)}
+
 .ni.new::before{content:"";position:absolute;top:12px;left:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
 .ni.new{padding-inline-end:12px}
 .nx{width:28px;height:28px;flex:none;border-radius:50%;display:grid;place-items:center;color:var(--fg3);margin-top:-2px}
@@ -1016,7 +1016,7 @@ button.pbadge{border:0;font:inherit;font-size:12.5px;cursor:pointer}
 .tt-ti small{display:block;font-size:12.5px;color:var(--fg2)}
 .tt-card{flex:1;min-height:0;display:flex;margin:4px 14px 0;border-radius:20px;overflow:hidden;border:1px solid var(--tt-ln);box-shadow:var(--shadow);background:var(--tt-bg)}
 .tt-scroll{flex:1;min-width:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.tt-grid{display:grid;grid-template-columns:64px 74px repeat(7,minmax(112px,1fr));width:100%;min-width:922px}
+.tt-grid{display:grid;grid-template-columns:64px 74px repeat(var(--np,7),minmax(112px,1fr));width:100%;min-width:calc(138px + var(--np,7) * 112px)}
 .tt-c{box-sizing:border-box;min-height:64px;min-width:0;padding:6px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;line-height:1.55;word-break:break-word;background:var(--tt-bg);color:var(--fg);border-inline-start:1px solid var(--tt-ln);border-bottom:1px solid var(--tt-ln)}
 .tt-h{position:sticky;top:0;z-index:3;min-height:58px;flex-direction:column;gap:1px;background:var(--tt-hd);color:var(--fg)}
 .tt-h b{font-weight:700;font-size:13.5px}
@@ -1324,3 +1324,122 @@ button.pbadge{border:0;font:inherit;font-size:12.5px;cursor:pointer}
 .sc-c.low{background:rgba(255,184,0,.2)}
 .sc-act{display:grid;gap:10px}
 @media (prefers-reduced-motion:reduce){.sc-line{animation:none;top:50%}}
+
+/* ---------- repeat counter + dissolve-out (right to left) ---------- */
+@property --wp{syntax:'<percentage>';inherits:false;initial-value:-30%}
+.nbc{direction:ltr;unicode-bidi:isolate;display:inline-block;vertical-align:middle;margin-inline-start:8px;padding:1px 8px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-style:normal;font-size:11.5px;font-weight:700;line-height:1.6}
+.nbc.pop{animation:nbcpop .42s cubic-bezier(.2,1.6,.4,1)}
+@keyframes nbcpop{0%{transform:scale(.5)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+.nb.bump{animation:nbbump .38s ease}
+@keyframes nbbump{0%{transform:scale(1)}35%{transform:scale(1.035) translateY(2px)}100%{transform:scale(1)}}
+.ni.gone,.nb.out{pointer-events:none;animation:nwipe .54s cubic-bezier(.55,.05,.85,.4) both;-webkit-mask-image:linear-gradient(to left,transparent var(--wp),#000 calc(var(--wp) + 32%));mask-image:linear-gradient(to left,transparent var(--wp),#000 calc(var(--wp) + 32%))}
+@keyframes nwipe{
+  0%{--wp:-32%;opacity:1;transform:none;filter:blur(0)}
+  100%{--wp:100%;opacity:0;transform:translateX(-54px) scale(.95);filter:blur(6px)}
+}
+.ni.fold{height:0!important;padding-block:0;margin-block:-4.5px;border-width:0;transition:height .26s ease,padding .26s ease,margin .26s ease}
+@media (prefers-reduced-motion:reduce){.ni.gone,.nb.out{animation:nbout .2s ease forwards;-webkit-mask-image:none;mask-image:none}}
+
+/* ---------- chart tap bubble ---------- */
+.kk-bars{position:relative}
+.kk-bars .hbar{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.bar-tip{position:absolute;z-index:8;transform:translate(-50%,-100%) scale(.7);transform-origin:50% 100%;opacity:0;pointer-events:none;padding:7px 13px;border-radius:15px;background:color-mix(in srgb,var(--fg) 90%,transparent);color:var(--bg);text-align:center;white-space:nowrap;box-shadow:0 10px 26px rgba(20,30,70,.3);transition:transform .24s cubic-bezier(.2,1.5,.4,1),opacity .2s}
+.bar-tip.in{opacity:1;transform:translate(-50%,-100%) scale(1)}
+.bar-tip.out{opacity:0;transform:translate(-50%,-150%) scale(.94);transition:transform .45s ease,opacity .45s ease}
+.bar-tip b{display:block;font-size:15px;font-weight:800;line-height:1.5}
+.bar-tip small{display:block;font-size:11px;opacity:.82;margin-top:1px}
+.bar-tip.ok{background:var(--ok);color:#fff}
+.bar-tip.bad{background:var(--bad);color:#fff}
+.hbar.tapped i,.hbar.tapped .rp-tw{filter:brightness(1.22) saturate(1.2)}
+.hbar i,.hbar .rp-tw{transition:filter .25s}
+@media (prefers-reduced-motion:reduce){.bar-tip,.bar-tip.in,.bar-tip.out{transition:opacity .2s}}
+
+/* account page: collapsible boxes */
+.acc{margin-top:14px;overflow:hidden;border-radius:28px}
+.acc-h .ml{font-weight:700}
+.acc-h .chv{transition:transform .3s cubic-bezier(.2,.9,.25,1)}
+.acc.open .acc-h .chv{transform:scaleX(-1) rotate(90deg)}
+.acc-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s cubic-bezier(.2,.9,.25,1)}
+.acc.open .acc-b{grid-template-rows:1fr}
+.acc-in{min-height:0;overflow:hidden;border-top:1px solid transparent;visibility:hidden;transition:visibility 0s .38s,border-color .3s}
+.acc.open .acc-in{visibility:visible;border-top-color:var(--sep);transition:visibility 0s,border-color .3s}
+.app.swap .acc{animation:fadeUp .5s cubic-bezier(.2,.9,.25,1) both}
+@media (prefers-reduced-motion:reduce){.acc-b,.acc-h .chv{transition:none}}
+
+/* number of parts */
+.tt-stp{display:flex;align-items:center;justify-content:center;gap:26px;margin:18px 0 8px}
+.tt-stp button{width:54px;height:54px;border-radius:50%;font-size:28px;line-height:1;font-weight:500;color:var(--fg);background:var(--field);transition:transform .15s,opacity .2s}
+.tt-stp button:active{transform:scale(.9)}
+.tt-stp button:disabled{opacity:.35}
+.tt-stp b{min-width:64px;text-align:center;font-size:38px;font-weight:800}
+.tt-hint{text-align:center;margin:6px 8px 4px}
+
+.rp-figs{display:grid;gap:18px}.rp-fig{margin:0}.rp-fig img{display:block;width:100%;aspect-ratio:3/4;object-fit:contain;border-radius:14px}.rp-fig figcaption{text-align:center;font-size:12.5px;color:var(--fg2);margin:6px 0}.rp-fig .tt-eb{margin-top:8px}
+
+/* mascot peeking over the home banner: sits on the banner's top edge, no box of its own */
+.hbw{position:relative;display:flow-root;margin:36px 0 14px}
+.hbw>.cover.thin{margin:0}
+.hbpk{position:absolute;z-index:3;left:44%;bottom:calc(100% - var(--ov,10px));height:104px;width:auto;transform:translateX(-50%);pointer-events:auto;cursor:pointer;touch-action:manipulation;transition:opacity .4s ease;user-select:none;-webkit-user-drag:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+.hbpw{height:var(--h,104px);opacity:0}
+.hbw.wv .hbpk:not(.hbpw){opacity:0}
+.hbw.wv .hbpw{opacity:1}
+/* entering the home page: the character rises from behind the banner (it sits under the banner while rising, then goes on top so its hands grab the edge) */
+.app.enter .hbw>.cover.thin{position:relative;z-index:1}
+.app.enter .hbpk:not(.hbpw){z-index:0;animation:pkrise .85s cubic-bezier(.2,.9,.25,1) .25s both}
+@keyframes pkrise{0%{transform:translateX(-50%) translateY(112px);z-index:0}99%{transform:translateX(-50%);z-index:0}100%{transform:translateX(-50%);z-index:3}}
+@media (prefers-reduced-motion:reduce){.app.enter .hbpk:not(.hbpw){animation:none;z-index:3}}
+
+/* rotating character banners (home) */
+.adcar{position:relative;aspect-ratio:3/1;margin:0 0 8px;border-radius:22px;overflow:hidden;background:var(--field)}
+.adslide{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer;opacity:0;visibility:hidden;transition:opacity .6s ease,visibility 0s .6s}
+.adslide.on{opacity:1;visibility:visible;transition:opacity .6s ease}
+.adslide img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-user-drag:none}
+.adslide:focus-visible,.adnav:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.adnav{position:absolute;top:50%;z-index:2;width:30px;height:30px;margin-top:-15px;border-radius:50%;display:grid;place-items:center;color:#fff;background:rgba(15,20,40,.38);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);opacity:.85}
+.adnav svg{width:18px;height:18px}
+.adnav.next{right:6px}
+.adnav.prev{left:6px}
+.adnav.prev svg{transform:scaleX(-1)}
+/* character page */
+.chv{margin-top:6px}
+/* character scene: the whole card is the brick-wall picture (day / night); figure stands on the floor, small price + buy sit at the right, level with the hands */
+.chwrap{--g1:#8ab4ff;--g2:#fff;--g3:#b48cff;position:relative;width:100%;margin-top:4px}
+/* liquid glowing frame in the character's colours: two conic gradients turn in opposite directions; a blurred copy behind gives the light */
+.chring,.chglow{position:absolute;inset:-4px;border-radius:32px;overflow:hidden;pointer-events:none}
+.chglow{inset:-6px;filter:blur(16px);opacity:.85;animation:chpulse 3.2s ease-in-out infinite}
+.chring i,.chglow i{position:absolute;left:50%;top:50%;width:230%;aspect-ratio:1;margin:0;border-radius:50%}
+.chring i:first-child,.chglow i:first-child{background:conic-gradient(var(--g1),var(--g2) 10%,var(--g3) 24%,var(--g1) 38%,var(--g2) 56%,var(--g3) 72%,var(--g1));animation:chspin 6s linear infinite}
+.chring i:last-child,.chglow i:last-child{background:conic-gradient(transparent 0,var(--g2) 8%,transparent 20%,var(--g1) 45%,transparent 58%,var(--g3) 80%,transparent 92%);opacity:.8;mix-blend-mode:screen;animation:chspin 9s linear infinite reverse}
+@keyframes chspin{from{transform:translate(-50%,-50%) rotate(0)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes chpulse{0%,100%{opacity:.55}50%{opacity:1}}
+.chscene{position:relative;z-index:1;width:100%;height:max(440px,calc(100dvh - 232px));border-radius:28px;overflow:hidden;background:#555 center bottom/cover no-repeat;box-shadow:var(--shadow)}
+.chsh{position:absolute;left:50%;bottom:3.4%;width:40%;height:3%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);filter:blur(3px);pointer-events:none}
+.chfig{position:absolute;left:50%;bottom:3.4%;height:67%;aspect-ratio:720/1073;transform:translateX(-50%);perspective:1100px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;animation:chfade .45s ease both}
+.chflip{position:absolute;inset:0;display:block;transform-style:preserve-3d;transition:transform .7s cubic-bezier(.3,.8,.25,1)}
+.chfig.bk .chflip{transform:rotateY(180deg)}
+.chflip img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;-webkit-backface-visibility:hidden;backface-visibility:hidden;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(0,0,0,.28))}
+.chflip .chb{transform:rotateY(180deg)}
+@keyframes chfade{from{opacity:0;transform:translateX(-50%) scale(.985)}to{opacity:1;transform:translateX(-50%)}}
+.chinfo{position:absolute;right:8px;top:64%;width:80px;display:flex;flex-direction:column;align-items:stretch;gap:6px;z-index:2}
+.chprice{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 3px;border-radius:13px;background:rgba(10,12,20,.5);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:#fff;text-align:center;line-height:1.35}
+.chprice .old{color:rgba(255,255,255,.72);font-size:10px;text-decoration:line-through;text-decoration-thickness:1.5px}
+.chprice .new{font-size:12.5px;font-weight:800;color:#fff}
+.chprice .new.sale{color:#ff8a82}
+.chprice .off{padding:1px 8px;border-radius:99px;background:var(--bad);color:#fff;font-size:10px;font-weight:700}
+.chbuy{width:100%;margin-top:0;padding:7px 8px;font-size:12.5px;border-radius:12px}
+/* buy button: character colours flow through it like liquid, with a pulsing glow */
+.chbuy{position:relative;overflow:hidden;color:var(--bt,#fff);font-weight:800;background:linear-gradient(110deg,var(--b1,var(--accent)),var(--b2,var(--accent)),var(--b1,var(--accent)),var(--b2,var(--accent)),var(--b1,var(--accent)));background-size:300% 100%;animation:chflow 3.2s linear infinite,chbglow 2.4s ease-in-out infinite;border:1px solid rgba(255,255,255,.35)}
+.chbuy::after{content:"";position:absolute;top:0;bottom:0;width:40%;left:-50%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:chshine 3.2s ease-in-out infinite;pointer-events:none}
+@keyframes chflow{from{background-position:0 0}to{background-position:-300% 0}}
+@keyframes chbglow{0%,100%{box-shadow:0 0 6px var(--b1,var(--accent)),0 0 14px -2px var(--b1,var(--accent))}50%{box-shadow:0 0 12px var(--b2,var(--accent)),0 0 26px 2px var(--b2,var(--accent))}}
+@keyframes chshine{0%,55%{left:-50%}100%{left:130%}}
+.chbuy .ic{width:15px;height:15px}
+@media (prefers-reduced-motion:reduce){.chbuy,.chbuy::after{animation:none}.chring i,.chglow,.chglow i{animation:none}.chflip{transition:none}.chfig{animation:none}}
+.chgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}
+.chcard{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 10px 12px;text-align:center;cursor:pointer}
+.chcard .chpic{display:block;width:100%;aspect-ratio:720/1073;border-radius:16px;overflow:hidden;background:#555 center bottom/cover no-repeat}
+.chcard img{width:100%;height:100%;object-fit:contain;display:block}
+.chcard b{font-size:14.5px}
+@media (min-width:820px){
+  .chgrid{position:relative;left:50%;transform:translateX(-50%);width:min(860px,calc(100vw - 48px));grid-template-columns:repeat(4,1fr)}
+}

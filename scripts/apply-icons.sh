@@ -24,7 +24,7 @@ mkdir -p "$RES/values" "$RES/mipmap-anydpi-v26"
 cat > "$RES/values/ic_ario_background.xml" <<'XML'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_ario_background">#0C0C0E</color>
+    <color name="ic_ario_background">#00000000</color>
 </resources>
 XML
 for n in ic_ario ic_ario_round; do

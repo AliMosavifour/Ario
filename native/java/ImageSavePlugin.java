@@ -1,6 +1,7 @@
 package __APPID__;
 
 import android.content.ClipData;
+import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -82,13 +83,17 @@ public class ImageSavePlugin extends Plugin {
             byte[] bytes = Base64.decode(data, Base64.DEFAULT);
             File dir = new File(getContext().getCacheDir(), "clip");
             if (!dir.exists()) dir.mkdirs();
-            File f = new File(dir, "ario-report.png");
+            File[] old = dir.listFiles();
+            if (old != null) for (File o : old) o.delete();
+            File f = new File(dir, "ario-" + System.currentTimeMillis() + ".png");
             FileOutputStream fo = new FileOutputStream(f);
             fo.write(bytes);
             fo.close();
             Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+            ClipDescription desc = new ClipDescription("Ario", new String[]{"image/png"});
+            ClipData clip = new ClipData(desc, new ClipData.Item(uri));
             ClipboardManager cm = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(ClipData.newUri(getContext().getContentResolver(), "Ario", uri));
+            cm.setPrimaryClip(clip);
             call.resolve();
         } catch (Exception e) {
             call.reject(String.valueOf(e.getMessage()));
