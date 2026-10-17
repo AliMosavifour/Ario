@@ -8,7 +8,7 @@
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_barnameyar",
-      "iconColor": "#0A7AFF"
+      "iconColor": "#3D63F0"
     }
   }
 }
