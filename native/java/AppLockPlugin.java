@@ -29,8 +29,8 @@ public class AppLockPlugin extends Plugin {
 
     @PluginMethod
     public void authenticate(final PluginCall call) {
-        final String title = call.getString("title", "باز کردن Ario");
-        final String cancel = call.getString("cancel", "رمز برنامه");
+        final String title = call.getString("title", ArioLang.t(getContext(), "باز کردن Ario", "Unlock Ario"));
+        final String cancel = call.getString("cancel", ArioLang.t(getContext(), "رمز برنامه", "Use passcode"));
         getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {

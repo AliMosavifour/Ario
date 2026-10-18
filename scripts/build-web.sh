@@ -4,7 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ESB="npx --no-install esbuild"
-$ESB src/js/app.js --minify --target=chrome80 --legal-comments=none --charset=utf8 --outfile=www/js/app.js
+# English dictionary + language core + the app are joined into one script
+cat src/js/i18n-en.js src/js/i18n.js src/js/app.js | $ESB --minify --target=chrome80 --legal-comments=none --charset=utf8 > www/js/app.js
 $ESB src/css/app.css --minify --target=chrome80 --legal-comments=none --charset=utf8 --outfile=www/css/app.css
 
 # ---- Offline text recognition for "اسکن عکس جدول": engine + Persian language file go into www/ocr ----

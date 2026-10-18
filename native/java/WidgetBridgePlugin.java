@@ -10,6 +10,16 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 /** Receives today's summary from the web app and refreshes the home-screen widget. */
 @CapacitorPlugin(name = "WidgetBridge")
 public class WidgetBridgePlugin extends Plugin {
+    /** Remembers the app language (fa / en) for notification buttons, channel names and widget fallbacks. */
+    @PluginMethod
+    public void setLang(PluginCall call) {
+        Context c = getContext();
+        ArioLang.set(c, call.getString("lang", "fa"));
+        try { ArioNotifyCore.ensureChannels(c); } catch (Exception e) { /* best effort */ }
+        ArioWidgetProvider.refreshAll(c);
+        call.resolve();
+    }
+
     @PluginMethod
     public void update(PluginCall call) {
         String json = call.getString("json", "{}");

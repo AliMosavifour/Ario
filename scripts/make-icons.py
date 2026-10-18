@@ -57,5 +57,5 @@ for d, s in LEG.items():
     canvas(s, 0.96).save(os.path.join(p, "ic_launcher.png"))
     canvas(s, 0.96).save(os.path.join(p, "ic_launcher_round.png"))
     fg = int(round(s * 108 / 48))
-    canvas(fg, 60 / 108).save(os.path.join(p, "ic_launcher_foreground.png"))
+    canvas(fg, 0.82).save(os.path.join(p, "ic_launcher_foreground.png"))
 print("icons written, source box", side, "px")

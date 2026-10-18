@@ -287,18 +287,18 @@ public class ArioNotifyCore {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm.getNotificationChannel("ario_rem") == null) {
-            NotificationChannel ch = new NotificationChannel("ario_rem", "یادآورها", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel ch = new NotificationChannel("ario_rem", ArioLang.t(c, "یادآورها", "Reminders"), NotificationManager.IMPORTANCE_HIGH);
             ch.enableVibration(true);
             ch.enableLights(true);
             nm.createNotificationChannel(ch);
         }
         if (nm.getNotificationChannel("ario_sum") == null) {
-            NotificationChannel ch = new NotificationChannel("ario_sum", "خلاصه روزانه", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel ch = new NotificationChannel("ario_sum", ArioLang.t(c, "خلاصه روزانه", "Daily summary"), NotificationManager.IMPORTANCE_DEFAULT);
             ch.enableVibration(true);
             nm.createNotificationChannel(ch);
         }
         if (nm.getNotificationChannel("ario_fo") == null) {
-            NotificationChannel ch = new NotificationChannel("ario_fo", "پایان تمرکز", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel ch = new NotificationChannel("ario_fo", ArioLang.t(c, "پایان تمرکز", "Focus finished"), NotificationManager.IMPORTANCE_HIGH);
             ch.enableVibration(true);
             nm.createNotificationChannel(ch);
         }
@@ -357,8 +357,8 @@ public class ArioNotifyCore {
             if (lbm != null) b.setLargeIcon(lbm);
             if (it.optBoolean("act", false)) {
                 String json = it.toString();
-                b.addAction(0, "۱۰ دقیقه بعد", actionPi(c, "ario.snooze", id, tid, json));
-                b.addAction(0, "انجام شد", actionPi(c, "ario.done", id, tid, json));
+                b.addAction(0, ArioLang.t(c, "۱۰ دقیقه بعد", "Snooze 10 min"), actionPi(c, "ario.snooze", id, tid, json));
+                b.addAction(0, ArioLang.t(c, "انجام شد", "Done"), actionPi(c, "ario.done", id, tid, json));
             }
             NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
             nm.notify(id, b.build());

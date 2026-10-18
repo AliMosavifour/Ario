@@ -30,8 +30,8 @@ public class FocusNotifyPlugin extends Plugin {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm.getNotificationChannel(CH) != null) return;
-        NotificationChannel ch = new NotificationChannel(CH, "تایمر تمرکز", NotificationManager.IMPORTANCE_LOW);
-        ch.setDescription("شمارش معکوس زندهٔ تمرکز");
+        NotificationChannel ch = new NotificationChannel(CH, ArioLang.t(c, "تایمر تمرکز", "Focus timer"), NotificationManager.IMPORTANCE_LOW);
+        ch.setDescription(ArioLang.t(c, "شمارش معکوس زندهٔ تمرکز", "Live focus countdown"));
         ch.setSound(null, null);
         ch.enableVibration(false);
         ch.setShowBadge(false);
@@ -45,7 +45,7 @@ public class FocusNotifyPlugin extends Plugin {
             ensureChannel(c);
             boolean run = Boolean.TRUE.equals(call.getBoolean("run", false));
             long end = call.getData().optLong("end", 0L);
-            String title = call.getString("title", "تمرکز");
+            String title = call.getString("title", ArioLang.t(c, "تمرکز", "Focus"));
             String text = call.getString("text", "");
             String sub = call.getString("sub", "");
             String leftText = call.getString("leftText", "");

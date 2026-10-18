@@ -35,8 +35,8 @@ public class ArioWidgetProvider extends AppWidgetProvider {
     static RemoteViews build(Context ctx) {
         RemoteViews v = new RemoteViews(ctx.getPackageName(), R.layout.widget_ario);
         int[] rows = {R.id.w_r1, R.id.w_r2, R.id.w_r3, R.id.w_r4};
-        String title = "امروز";
-        String sub = "برای دیدن کارها، برنامه را یک بار باز کن";
+        String title = ArioLang.t(ctx, "امروز", "Today");
+        String sub = ArioLang.t(ctx, "برای دیدن کارها، برنامه را یک بار باز کن", "Open the app once to see your tasks");
         String over = "";
         String[] lines = new String[4];
         try {
