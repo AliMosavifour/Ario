@@ -277,7 +277,7 @@ function rpClean(r){
   return o;
 }
 function P(p){var o=Object.assign({},DEFP,p);o.rp=rpClean(o.rp);if(!o.sndv){o.sndv=1;o.sound=true}o.ttp=ttpClean(o.ttp);if(typeof o.ttCur!=='string')o.ttCur=null;o.kk=kkClean(o.kk);o.ns=nsClean(o.ns);o.rpd=rpdClean(o.rpd);o.rk=rkClean(o.rk);o.tbk=tbClean(o.tbk);o.kc=kcClean(o.kc);return o}
-var DEFP={msum:'08:00',mev:'20:00',hbanner:true,sort:'auto',name:'',handle:'',hue:215,theme:'auto',showOver:true,fx:true,sound:true,sndv:0,photo:'',welcomed:false,goal:5,fgoal:60,notif:false,vip:false,vipSeen:false,email:'',via:'',banner:'auto',wrev:true,tt:null,ttp:[],ttCur:null,kk:null,rp:null,ns:null,rpd:null,rk:null,kc:null};
+var DEFP={msum:'08:00',mev:'20:00',hbanner:true,sort:'auto',name:'',handle:'',hue:215,theme:'auto',showOver:true,fx:true,sound:true,sndv:0,photo:'',welcomed:false,goal:5,fgoal:60,notif:false,vip:false,vipCode:false,vipSeen:false,email:'',via:'',banner:'auto',wrev:true,tt:null,ttp:[],ttCur:null,kk:null,rp:null,ns:null,rpd:null,rk:null,kc:null};
 var state={tasks:cached?cached.tasks:sample(),profile:P(cached&&cached.profile),hist:(cached&&cached.hist)||null,notifs:cleanNotifs(cached&&cached.notifs),nseen:Number(cached&&cached.nseen)||0};
 var ui={tab:'today',filter:'all',cat:null,day:todayKey(),loading:false,fcats:[],fpri:[],ftags:[],q:''};
 var acctName='',userId=null,storeReadyRes,storeReady=new Promise(function(r){storeReadyRes=r});
@@ -409,7 +409,9 @@ function pkChar(){
 /* tapping the character fades it into the waving picture; after 1.5 s it fades back */
 var pkWaveT=0,pkFirst=true; /* the first time the home page shows after the app opens, the character rises and then waves; later visits only rise */
 function pkWaveA(){
-  var w=document.querySelector('.hbw');if(!w||!w.querySelector('.hbpw'))return;
+  var w=document.querySelector('.hbw'),pw=w&&w.querySelector('.hbpw');if(!pw)return;
+  /* if the waving picture is missing or not loaded, keep the normal character on screen instead of fading it away */
+  if(!pw.complete||!pw.naturalWidth)return;
   clearTimeout(pkWaveT);w.classList.add('wv');
   pkWaveT=setTimeout(function(){var g=document.querySelector('.hbw');if(g)g.classList.remove('wv')},1500);
 }
@@ -571,7 +573,7 @@ function viewCat(){
 function movePill(){
   var on=document.querySelector('.tab.on'),p=document.querySelector('.pill');
   if(!on||!p)return;
-  var mk=on.dataset.tab+'|'+window.innerWidth;
+  var mk=on.dataset.tab+'|'+window.innerWidth+'|'+on.offsetLeft+'|'+on.offsetWidth;
   if(movePill.k===mk)return;
   movePill.k=mk;
   p.style.width=on.offsetWidth+'px';
@@ -595,6 +597,8 @@ function render(mode){
     if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   movePill();syncCover();
+  /* character page: decode the back picture now (it is invisible, so the browser would otherwise decode it only on the first tap = a visible jump) */
+  if(ui.tab==='char'){var cb=document.querySelector('.chb');if(cb&&cb.decode)cb.decode().catch(function(){})}
   if(qs0){var qn=document.getElementById('qaIn');if(qn){qn.value=qs0.v;if(qs0.f)qn.focus({preventScroll:true})}}
   qaPreview();
   if(ui.tab==='tb')tbFill();
@@ -875,7 +879,19 @@ function applyTheme(){
     for(i=0;i<VIP_VARS.length;i++)r.style.removeProperty(VIP_VARS[i]);
     if(t==='light'||t==='dark')r.setAttribute('data-theme',t);else r.removeAttribute('data-theme');
   }
+  syncBars();
 }
+/* paint the Android status / navigation bars with the app background (no white strip under the tab bar in dark mode) */
+function syncBars(){
+  try{
+    if(!WB||!WB.setBars)return;
+    var m=/(\d+)[^\d]+(\d+)[^\d]+(\d+)/.exec(getComputedStyle(document.body).backgroundColor||'');
+    if(!m)return;
+    var c=[+m[1],+m[2],+m[3]],hex='#'+c.map(function(v){return ('0'+v.toString(16)).slice(-2)}).join('');
+    WB.setBars({color:hex,dark:(0.299*c[0]+0.587*c[1]+0.114*c[2])<128});
+  }catch(e){}
+}
+try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){setTimeout(syncBars,50)})}catch(e){}
 /* ---------- VIP stickers ----------
    The stickers cut from the three VIP sheets (img/st/<theme>-<slot>.webp, 22 slots per theme) appear all over the app
    while the VIP colour theme is on. They are always in the page, but invisible: CSS shows them only while <html> has
@@ -925,7 +941,7 @@ function displayHandle(){return state.profile.handle||('user_'+String(userId||'g
 var BNS=[['auto',(__("جنگل Ario")),1],['lineup',(__("گروه Ario")),2],['street',(__("خیابان")),3],['castle',(__("قلعه")),4],['horses',(__("اسب‌سواران")),5],['room',(__("شب‌نشینی")),6],['camp',(__("کمپ جنگلی")),7],['rooftop',(__("غروب شهر")),0],['graffiti',(__("گرافیتی")),0],['angel',(__("فرشته آسمانی")),0],['candy',(__("سرزمین شیرینی")),0],['sheikh',(__("میدان نبرد")),0]];
 function bnFind(id){for(var i=0;i<BNS.length;i++)if(BNS[i][0]===id)return BNS[i];return null}
 function bnLv(){return state.profile.lvl||1}
-function bnOpen(b){return b[2]===0?!!state.profile.vip:bnLv()>=b[2]}
+function bnOpen(b){if(state.profile.vipCode)return true;return b[2]===0?!!state.profile.vip:bnLv()>=b[2]}
 function bnNeed(b){return b[2]===0?'VIP':(__("سطح")+" ")+fa(b[2])}
 function bnId(){var b=bnFind(state.profile.banner);return b&&bnOpen(b)?b[0]:'auto'}
 function bnCls(){var id=bnId();return id==='auto'?'':' cbn bn-'+id}
@@ -987,6 +1003,7 @@ function viewAccount(){
     accClose()+
     accOpen('prefs','tools',(__("تنظیمات")))+
       row('lock',(__("قفل برنامه")),lkGet()?(__("روشن")):(__("خاموش")),'openLock')+
+      row('key',(__("کد VIP")),state.profile.vipCode?(__("فعال")):'','openVipCode')+
       row('cloud',(__("پشتیبان‌گیری و بازیابی")),'','openBackup')+
       row('trash',(__("پاک کردن انجام‌شده‌ها")),'','clearDone')+
       row('info',(__("اطلاعات برنامه")),L?'':(__("نسخه")+" ")+fa(APP.ver),'openAppInfo')+
@@ -1146,6 +1163,7 @@ function vpBuild(){
     '<div class="vp-nrow"><h3 class="vp-name"></h3><img class="vp-fig" alt="" draggable="false"></div><p class="vp-sub"></p>'+
     ("<div class=\"vp-swl\">"+__("رنگ VIP اسم؛ لمسش کن")+"</div><div class=\"vp-sw\" role=\"group\" aria-label=\""+__("رنگ اسم")+"\"></div>")+
     ("<div class=\"vp-pk\" role=\"list\" aria-label=\""+__("امکانات این پروفایل")+"\"></div></div>")+
+    '<div class="vp-lv"><div class="vp-lvt"><i></i>پیش‌نمایش زنده‌ی تم</div><div class="vp-lvb" aria-hidden="true"></div></div>'+
     ("<div class=\"vp-tabs\" role=\"group\" aria-label=\""+__("پروفایل‌های VIP")+"\"></div>")+
     '<div class="vp-foot"><div class="vp-st"></div><button type="button" class="vp-go"></button></div></div>';
   document.body.appendChild(vpEl);
@@ -1176,6 +1194,26 @@ function vpBuild(){
   card.addEventListener('pointerleave',function(){vpEl.style.setProperty('--px',0);vpEl.style.setProperty('--py',0)});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&vpEl&&!vpEl.hidden){e.stopImmediatePropagation();vpClose()}},true);
 }
+/* the live box: a small moving copy of the app drawn with this profile's theme (colours, glow, stickers, banner) */
+function vpLive(id){
+  var f=VFX[id],b=vpEl&&vpEl.querySelector('.vp-lvb');if(!f||!b)return;
+  var c0=hexRgb(f.c[0]),lum=(0.299*c0[0]+0.587*c0[1]+0.114*c0[2])/255,mix=function(k){return 'rgb('+c0.map(function(v){return Math.round(8+v*k)}).join(',')+')'};
+  var st=b.style;
+  st.setProperty('--a',f.c[0]);st.setProperty('--oa',lum>.62?'#1a1204':'#ffffff');st.setProperty('--b2',f.c[1]);st.setProperty('--b3',f.c[2]);
+  st.setProperty('--bgc',mix(.09));st.setProperty('--gl','rgba('+f.g+',.10)');st.setProperty('--gl2',mix(.2));st.setProperty('--ed','rgba('+f.g+',.28)');
+  vsPre(f.bn);
+  var S=function(slot,cls){return '<i class="stk stk-'+slot+' '+cls+'" style="background-image:url(img/st/'+f.bn+'-'+slot+'.webp)"></i>'};
+  var rows=['خرید کتاب','تست ریاضی','مرور زیست'].map(function(t,i){
+    return '<div class="lv-row"><span class="lv-ck'+(i===0?' on':'')+(i===1?' pulse':'')+'"></span><span class="lv-tx">'+t+'</span><span class="lv-tm"></span></div>';
+  }).join('');
+  b.innerHTML='<i class="lv-bl lv-b1"></i><i class="lv-bl lv-b2"></i><i class="lv-bl lv-b3"></i>'+
+    '<div class="lv-in"><div class="lv-hd"><b>امروز</b>'+S('cloud','lv-s1')+'</div>'+
+    '<div class="lv-cv" style="background-image:url(img/bn-'+f.bn+'.webp)"><i></i>'+S('hi','lv-s2')+'</div>'+
+    '<div class="lv-rows">'+rows+'</div>'+
+    '<div class="lv-bar"><i></i><i class="on"></i><i></i><i></i></div>'+
+    '<span class="lv-fab">+</span>'+S('bell','lv-s3')+'</div>';
+  b.classList.remove('lv-chg');void b.offsetWidth;b.classList.add('lv-chg');
+}
 function vpSet(id){
   var f=VFX[id];if(!f||!vpEl)return;
   var first=!vpCur;vpCur=id;
@@ -1190,7 +1228,7 @@ function vpSet(id){
   q('.vp-pk').innerHTML=pk.map(function(x,i){return i?'<span class="vp-pki" role="listitem"><b class="vp-pkc">✓</b>'+x[1]+x[2]+'</span>':'<button type="button" class="vp-pki vp-prev" data-prev="1" aria-pressed="'+!!vipPrev+'"><b class="vp-pkc">✓</b>'+x[1]+x[2]+'<em>'+__("پیش‌نمایش")+'</em></button>'}).join('');
   q('.vp-img').style.backgroundImage='url(img/bn-'+f.bn+'.webp)';
   q('.vp-pic').innerHTML='<span class="aimg '+id+' vip un" role="img" aria-label="'+AVN[id]+'"></span>'+(unl?'':'<span class="vp-lk" aria-hidden="true">'+icon('lock')+'</span>');
-  q('.vp-t').textContent=f.t;
+  q('.vp-t').textContent=f.t;vpLive(id);
   q('.vp-fig').src='img/vp-'+f.bn+'.webp';
   var nm=q('.vp-name');nm.textContent=displayName();nm.classList.remove('solid');
   q('.vp-sub').textContent=f.s;
@@ -1536,24 +1574,42 @@ function dismissBanner(el){
   setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},560);
 }
 var nbDrag=null;
+/* drag a banner: swipe it LEFT (like a phone notification) or UP to dismiss; a plain tap opens the notification centre */
 $('#rbs').addEventListener('pointerdown',function(e){
-  var el=e.target.closest('.nb');if(!el||e.target.closest('button'))return;
-  clearTimeout(el._t);nbDrag={el:el,y:e.clientY,dy:0,id:e.pointerId};
+  var el=e.target.closest('.nb');if(!el||e.target.closest('button')||el.classList.contains('swiped'))return;
+  clearTimeout(el._t);nbDrag={el:el,x:e.clientX,y:e.clientY,dx:0,dy:0,id:e.pointerId,t:Date.now()};
   try{el.setPointerCapture(e.pointerId)}catch(x){}
 });
 $('#rbs').addEventListener('pointermove',function(e){
   if(!nbDrag||e.pointerId!==nbDrag.id)return;
-  nbDrag.dy=Math.min(0,e.clientY-nbDrag.y);
-  nbDrag.el.style.animation='none';
-  nbDrag.el.style.transform='translateY('+nbDrag.dy+'px)';
-  nbDrag.el.style.opacity=String(Math.max(.2,1+nbDrag.dy/140));
+  var d=nbDrag,rx=e.clientX-d.x,ry=e.clientY-d.y;
+  if(!d.ax&&(Math.abs(rx)>6||Math.abs(ry)>6))d.ax=Math.abs(rx)>=Math.abs(ry)?'x':'y';
+  d.dx=d.ax==='x'?Math.min(0,rx):0;d.dy=d.ax==='y'?Math.min(0,ry):0;
+  d.el.style.animation='none';d.el.style.transition='none';
+  if(d.ax==='x'){
+    d.el.style.transform='translateX('+d.dx+'px)';
+    d.el.style.opacity=String(Math.max(0,1+d.dx/Math.max(160,d.el.offsetWidth*.7)));
+  }else{
+    d.el.style.transform='translateY('+d.dy+'px)';
+    d.el.style.opacity=String(Math.max(.2,1+d.dy/140));
+  }
 });
+function nbSwipeOut(el){
+  clearTimeout(el._t);
+  el.classList.add('swiped','out');
+  el.style.transition='transform .24s ease,opacity .24s ease';
+  el.style.transform='translateX(-'+(el.offsetWidth+40)+'px)';el.style.opacity='0';
+  setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el)},260);
+}
 function nbEnd(e){
   if(!nbDrag||e.pointerId!==nbDrag.id)return;
   var d=nbDrag;nbDrag=null;
-  if(e.type==='pointerup'&&Math.abs(d.dy)<6){dismissBanner(d.el);openNC();return}
-  if(e.type==='pointerup'&&d.dy<-28){d.el.style.animation='';dismissBanner(d.el)}
-  else{d.el.style.transform='';d.el.style.opacity='';d.el.style.animation='none';d.el._t=setTimeout(function(){dismissBanner(d.el)},2500)}
+  var up=e.type==='pointerup';
+  if(up&&Math.abs(d.dx)<6&&Math.abs(d.dy)<6){d.el.style.transition='';dismissBanner(d.el);openNC();return}
+  var fast=(Date.now()-d.t)<260;
+  if(up&&d.ax==='x'&&(d.dx<-Math.min(90,d.el.offsetWidth*.3)||(fast&&d.dx<-30)))nbSwipeOut(d.el);
+  else if(up&&d.ax==='y'&&d.dy<-28){d.el.style.animation='';d.el.style.transition='';dismissBanner(d.el)}
+  else{d.el.style.transition='transform .2s ease,opacity .2s ease';d.el.style.transform='';d.el.style.opacity='';d.el.style.animation='none';d.el._t=setTimeout(function(){dismissBanner(d.el)},2500)}
 }
 $('#rbs').addEventListener('pointerup',nbEnd);
 $('#rbs').addEventListener('pointercancel',nbEnd);
@@ -1612,6 +1668,45 @@ nc.list.addEventListener('click',function(e){
   var go=function(){state.notifs=state.notifs.filter(function(n){return n.id!==id});writeCache();updateBell();ncDraw()};
   if(row&&!row.classList.contains('gone')){ncOut(row,0,go)}else if(!row)go();
 });
+/* swipe a notification in the centre from right to left: it follows the finger, fades, folds away and is deleted */
+var ncDrag=null;
+nc.list.addEventListener('pointerdown',function(e){
+  var row=e.target.closest('.ni');if(!row||e.target.closest('button')||row.classList.contains('gone')||row.classList.contains('swp'))return;
+  ncDrag={row:row,x:e.clientX,y:e.clientY,dx:0,id:e.pointerId,t:Date.now(),ax:''};
+});
+nc.list.addEventListener('pointermove',function(e){
+  var d=ncDrag;if(!d||e.pointerId!==d.id)return;
+  var rx=e.clientX-d.x,ry=e.clientY-d.y;
+  if(!d.ax&&(Math.abs(rx)>8||Math.abs(ry)>8)){
+    d.ax=Math.abs(rx)>Math.abs(ry)*1.2?'x':'y';
+    if(d.ax==='x'){try{d.row.setPointerCapture(e.pointerId)}catch(x){}d.row.style.transition='none'}
+  }
+  if(d.ax!=='x')return;
+  d.dx=Math.min(0,rx);
+  d.row.style.transform='translateX('+d.dx+'px)';
+  d.row.style.opacity=String(Math.max(0,1+d.dx/Math.max(180,d.row.offsetWidth*.8)));
+});
+function ncDragEnd(e){
+  var d=ncDrag;if(!d||e.pointerId!==d.id)return;ncDrag=null;
+  if(d.ax!=='x')return;
+  var row=d.row,w=row.offsetWidth,fast=(Date.now()-d.t)<260;
+  d.moved=true;ncSwallow=Date.now();
+  if(e.type==='pointerup'&&(d.dx<-Math.min(110,w*.32)||(fast&&d.dx<-40))){
+    var id=row.dataset.id;row.classList.add('swp');
+    row.style.transition='transform .22s ease,opacity .22s ease';
+    row.style.transform='translateX(-'+(w+30)+'px)';row.style.opacity='0';
+    setTimeout(function(){
+      row.style.transition='';row.style.height=row.offsetHeight+'px';row.style.overflow='hidden';void row.offsetHeight;
+      row.classList.add('fold');
+      setTimeout(function(){state.notifs=state.notifs.filter(function(n){return n.id!==id});writeCache();updateBell();ncDraw()},260);
+    },230);
+  }else{
+    row.style.transition='transform .2s ease,opacity .2s ease';row.style.transform='';row.style.opacity='';
+  }
+}
+var ncSwallow=0;
+nc.list.addEventListener('pointerup',ncDragEnd);
+nc.list.addEventListener('pointercancel',ncDragEnd);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!nc.wrap.hidden){e.preventDefault();closeNC()}});
 actions.openNotifs=openNC;
 
@@ -1999,6 +2094,7 @@ var NL=null;
 try{var CAP=window.Capacitor;if(CAP&&CAP.isNativePlatform&&CAP.isNativePlatform())NL=(CAP.Plugins&&CAP.Plugins.LocalNotifications)||(CAP.registerPlugin&&CAP.registerPlugin('LocalNotifications'))||null}catch(e){NL=null}
 var WB=null;
 try{var CAP2=window.Capacitor;if(CAP2&&CAP2.isNativePlatform&&CAP2.isNativePlatform())WB=(CAP2.Plugins&&CAP2.Plugins.WidgetBridge)||(CAP2.registerPlugin&&CAP2.registerPlugin('WidgetBridge'))||null}catch(e){WB=null}
+setTimeout(syncBars,0);
 try{if(WB){var lr=WB.setLang({lang:LANG});if(lr&&lr.catch)lr.catch(function(){})}}catch(e){}   /* native notification buttons / widget follow the app language */
 var wgT=null;
 /* push today's summary to the Android home-screen widget */
@@ -2663,6 +2759,33 @@ function openLockSettings(){
   requestAnimationFrame(function(){requestAnimationFrame(function(){w.classList.add('open')})});
 }
 actions.openLock=function(){openLockSettings()};
+
+/* ---------- VIP code: unlocks every VIP banner and VIP profile photo (and the level-locked banners too) ---------- */
+var VIP_CODE='SD8480AIMVI',vcEl=null;
+function openVipCode(){
+  if(vcEl)return;
+  var on=!!state.profile.vipCode;
+  var w=document.createElement('div');w.className='sheet-wrap';
+  w.innerHTML=("<div class=\"dim\"></div><form class=\"sheet\" role=\"dialog\" aria-modal=\"true\" autocomplete=\"off\" aria-label=\""+__("کد VIP")+"\"><div class=\"grab\"></div>")+
+    ("<div class=\"sheet-top\"><span></span><h2>"+__("کد VIP")+"</h2><button type=\"button\" data-vc=\"close\">"+__("بستن")+"</button></div>")+
+    (on?("<p class=\"vipt ok\">"+__("کد VIP فعال است. همه‌ی بنرها و پروفایل‌های VIP برایت باز است.")+"</p>")
+       :("<p class=\"hint\">"+__("کد VIP را وارد کن تا همه‌ی بنرها و پروفایل‌های VIP و قفل‌شده باز شوند.")+"</p><input class=\"field\" id=\"vcIn\" type=\"text\" dir=\"ltr\" inputmode=\"text\" autocapitalize=\"characters\" autocomplete=\"off\" autocorrect=\"off\" spellcheck=\"false\" placeholder=\"VIP code\" style=\"text-align:center;letter-spacing:1px;margin:8px 0\"><p class=\"hint\" id=\"vcMsg\" role=\"alert\" style=\"min-height:20px;color:#e5322a\"></p><button type=\"submit\" class=\"vp-go\" style=\"width:100%\">"+__("فعال‌سازی")+"</button>"))+
+    '</form>';
+  document.body.appendChild(w);vcEl=w;
+  document.documentElement.style.overflow='hidden';
+  function close(){if(!vcEl)return;vcEl=null;w.classList.remove('open');document.documentElement.style.overflow='';setTimeout(function(){w.remove()},350);if(ui.tab==='account')render()}
+  w.addEventListener('click',function(e){if(e.target.classList.contains('dim')||e.target.closest('[data-vc="close"]'))close()});
+  w.querySelector('form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var inp=w.querySelector('#vcIn');if(!inp)return;
+    var v=inp.value.replace(/[\s‌‏‎]/g,'').toUpperCase();
+    if(v!==VIP_CODE){w.querySelector('#vcMsg').textContent=__("کد درست نیست");inp.classList.remove('shake');void inp.offsetWidth;inp.classList.add('shake');return}
+    state.profile.vip=true;state.profile.vipCode=true;persist();applyTheme();
+    close();toast((__("کد VIP فعال شد؛ همه‌ی بنرها و پروفایل‌های VIP باز شدند")),null,null,'vip');
+  });
+  requestAnimationFrame(function(){requestAnimationFrame(function(){w.classList.add('open');var i=w.querySelector('#vcIn');if(i)try{i.focus()}catch(x){}})});
+}
+actions.openVipCode=openVipCode;
 
 /* ---------- quick add: understands Persian sentences ---------- */
 var JM=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
@@ -4220,6 +4343,7 @@ function scEnhance(cv){
       x.putImageData(a,0,0);
     }
   }catch(e){}
+  try{scFlatten(E)}catch(e){}
   return {cv:E,s:s};
 }
 function scBin(cv){
@@ -4357,29 +4481,119 @@ function scDayRows(H){
   if(tall.length<7)return null;
   return thin>=3?tall.slice(0,7):tall.slice(tall.length-7);
 }
-/* line runs (y ranges) of the dark pixels inside a cell: the quiet rows between two text lines split them */
+/* ---- straighten a tilted photo: the angle that makes the table's long lines most horizontal ---- */
+function scDeskew(cv){
+  var k=Math.min(1,700/Math.max(cv.width,cv.height)),sw=Math.max(8,Math.round(cv.width*k)),sh=Math.max(8,Math.round(cv.height*k));
+  var sm=document.createElement('canvas');sm.width=sw;sm.height=sh;sm.getContext('2d').drawImage(cv,0,0,sw,sh);
+  var b=scBin(sm),px=[],py=[],x,y,step=Math.max(1,Math.floor(Math.sqrt(sw*sh/90000)));
+  for(y=0;y<sh;y+=1)for(x=0;x<sw;x+=1)if(b.bin[y*sw+x]&&((x+y)%step===0)){px.push(x-sw/2);py.push(y-sh/2)}
+  if(px.length<200)return {cv:cv,a:0};
+  var N=px.length,span=Math.ceil(Math.hypot(sw,sh))+4,H=new Float32Array(span);
+  function score(deg){
+    var r=deg*Math.PI/180,cs=Math.cos(r),sn=Math.sin(r),i,s=0;H.fill(0);
+    for(i=0;i<N;i++){var yy=Math.round(py[i]*cs-px[i]*sn+span/2);if(yy>=0&&yy<span)H[yy]++}
+    for(i=0;i<span;i++)s+=H[i]*H[i];
+    return s;
+  }
+  var s0=score(0),best=0,bs=s0,a;
+  for(a=-8;a<=8.001;a+=.5){var q=score(a);if(q>bs){bs=q;best=a}}
+  var c=best;for(a=c-.5;a<=c+.501;a+=.1){var q2=score(a);if(q2>bs){bs=q2;best=a}}
+  if(Math.abs(best)<.25||bs<s0*1.03)return {cv:cv,a:0};
+  var r2=-best*Math.PI/180,cs2=Math.abs(Math.cos(r2)),sn2=Math.abs(Math.sin(r2)),W=Math.round(cv.width*cs2+cv.height*sn2),Hh=Math.round(cv.width*sn2+cv.height*cs2);
+  var o=document.createElement('canvas');o.width=W;o.height=Hh;var ox=o.getContext('2d');
+  ox.fillStyle='#fff';ox.fillRect(0,0,W,Hh);ox.translate(W/2,Hh/2);ox.rotate(r2);ox.imageSmoothingQuality='high';ox.drawImage(cv,-cv.width/2,-cv.height/2);
+  return {cv:o,a:best};
+}
+/* uneven light (shadow, one side brighter) is divided out, so the paper is evenly white and the writing evenly dark */
+function scFlatten(cv){
+  var w=cv.width,h=cv.height,x=cv.getContext('2d'),im=x.getImageData(0,0,w,h),d=im.data,n=w*h,g=new Uint8Array(n),i,xx,yy;
+  for(i=0;i<n;i++)g[i]=(d[i*4]*77+d[i*4+1]*150+d[i*4+2]*29)>>8;
+  var W=w+1,I=new Uint32Array(W*(h+1)),s;
+  for(yy=0;yy<h;yy++){s=0;for(xx=0;xx<w;xx++){s+=g[yy*w+xx];I[(yy+1)*W+xx+1]=I[yy*W+xx+1]+s}}
+  var r=Math.max(16,Math.round(Math.min(w,h)/14));
+  for(yy=0;yy<h;yy++){
+    var y0=Math.max(0,yy-r),y1=Math.min(h,yy+r+1);
+    for(xx=0;xx<w;xx++){
+      var x0=Math.max(0,xx-r),x1=Math.min(w,xx+r+1),m=(I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0])/((x1-x0)*(y1-y0));
+      /* the local average is pulled down by the writing itself, so it is lifted a little before dividing */
+      var v=g[yy*w+xx]*235/Math.max(40,m*1.06);v=v>255?255:v;
+      i=(yy*w+xx)*4;d[i]=d[i+1]=d[i+2]=v;
+    }
+  }
+  x.putImageData(im,0,0);
+}
+/* split one text line (ink rows ya..yb inside columns x0..x1) into words by the white gaps between them; boxes come back left to right */
+function scWordBoxes(b,x0,x1,ya,yb){
+  var h=yb-ya+1,cols=[],x,y,c,runs=[],s=-1,i,cmin=Math.max(1,Math.round(h*.07));
+  for(x=x0;x<x1;x++){
+    c=0;
+    if(x>=x0+2&&x<x1-2)for(y=ya;y<=yb;y++)c+=b.bin[y*b.w+x];
+    cols.push(c);
+  }
+  for(i=0;i<=cols.length;i++){
+    var o=i<cols.length&&cols[i]>=cmin;
+    if(o){if(s<0)s=i}else if(s>=0){runs.push([s+x0,i-1+x0]);s=-1}
+  }
+  runs=runs.filter(function(r){ /* specks of 1-2 px are noise, not part of a word */
+    if(r[1]-r[0]>=2)return true;
+    var ink=0,xx,yy;for(xx=r[0];xx<=r[1];xx++)for(yy=ya;yy<=yb;yy++)ink+=b.bin[yy*b.w+xx];
+    return ink>=Math.max(4,h*.25);
+  });
+  if(!runs.length)return [];
+  var g=[];for(i=0;i+1<runs.length;i++)g.push(runs[i+1][0]-runs[i][1]-1);
+  var thr=1e9;
+  if(g.length){
+    /* gaps inside a word (after letters that do not join) are small, gaps between words are clearly bigger: cut at the biggest jump */
+    var gs=g.slice().sort(function(p,q){return p-q}),lo=Math.max(2,h*.1),best=-1,bj=0;
+    for(i=0;i+1<gs.length;i++){var j=gs[i+1]-gs[i];if(gs[i+1]>=lo&&j>bj){bj=j;best=i}}
+    if(best>=0&&bj>=Math.max(1.5,h*.05))thr=(gs[best]+gs[best+1])/2;
+    else thr=Math.max(3,h*.2);
+  }
+  var out=[],cur=[runs[0][0],runs[0][1]];
+  for(i=0;i<g.length;i++){
+    if(g[i]>=thr){out.push(cur);cur=[runs[i+1][0],runs[i+1][1]]}
+    else cur[1]=runs[i+1][1];
+  }
+  out.push(cur);
+  return out;
+}
+/* line runs (y ranges) of the dark pixels inside a cell. Dots above/below Persian letters sit a pixel or two away from the letters,
+   so runs that nearly touch are one line; real gaps between two text lines are much bigger */
 function scInkLines(b,x0,y0,x1,y1){
-  var w=x1-x0,h=y1-y0,rows=[],y,x,c,mx=0;
-  for(y=0;y<h;y++){c=0;for(x=3;x<w-3;x++)c+=b.bin[(y0+y)*b.w+x0+x];rows.push(c);if(c>mx)mx=c}
+  var w=x1-x0,h=y1-y0,rows=[],y,x,c,mx=0,full=(w-6)*.85;
+  for(y=0;y<h;y++){c=0;for(x=3;x<w-3;x++)c+=b.bin[(y0+y)*b.w+x0+x];if(c>=full)c=0;rows.push(c);if(c>mx)mx=c} /* a full-width row is the table's own rule, not writing */
   if(mx<3)return [];
-  var th=Math.max(3,mx*.07),runs=[],s=-1,i;
+  var runs=[],s=-1,i,ink;
   for(y=0;y<=h;y++){
-    var on=y<h&&rows[y]>th;
-    if(on){if(s<0)s=y}
-    else if(s>=0){if(y-1-s>=2)runs.push([s,y-1]);s=-1}
+    var on=y<h&&rows[y]>=2;
+    if(on){if(s<0)s=y}else if(s>=0){runs.push([s,y-1]);s=-1}
   }
-  for(i=0;i<runs.length;i++){ /* take in the faint rows at the edges of a line (dots, tails of short words) without touching the next line */
-    var lo=i?runs[i-1][1]+2:0,hi=i+1<runs.length?runs[i+1][0]-2:h-1;
-    while(runs[i][0]>lo&&rows[runs[i][0]-1]>=2)runs[i][0]--;
-    while(runs[i][1]<hi&&rows[runs[i][1]+1]>=2)runs[i][1]++;
-    runs[i][0]=Math.max(lo,runs[i][0]-3);runs[i][1]=Math.min(hi,runs[i][1]+1); /* dots above letters sit apart from the line */
+  for(;;){
+    var bi=-1,br=1e9;
+    for(i=0;i+1<runs.length;i++){
+      var h1=runs[i][1]-runs[i][0]+1,h2=runs[i+1][1]-runs[i+1][0]+1,gp=runs[i+1][0]-runs[i][1]-1,rt=gp/Math.max(h1,h2,4);
+      if(rt<br){br=rt;bi=i}
+    }
+    if(bi<0||br>.17)break;
+    runs[bi]=[runs[bi][0],runs[bi+1][1]];runs.splice(bi+1,1);
   }
-  var big=runs.map(function(q){return q[1]-q[0]+1}).filter(function(v){return v>=8}).sort(function(a,b2){return a-b2}),ht=big.length?big[big.length>>1]:0;
-  if(ht)for(i=0;i+1<runs.length;){
-    var h1=runs[i][1]-runs[i][0]+1,h2=runs[i+1][1]-runs[i+1][0]+1,mh=runs[i+1][1]-runs[i][0]+1;
-    if((h1<ht*.45||h2<ht*.45)&&mh<=ht*1.35){runs[i]=[runs[i][0],runs[i+1][1]];runs.splice(i+1,1)}else i++;
+  runs=runs.filter(function(q){ink=0;for(var yy=q[0];yy<=q[1];yy++)ink+=rows[yy];return ink>=10&&q[1]-q[0]>=2});
+  for(i=0;i<runs.length;i++){
+    var lo=i?runs[i-1][1]+1:0,hi=i+1<runs.length?runs[i+1][0]-1:h-1;
+    runs[i]=[Math.max(lo,runs[i][0]-2),Math.min(hi,runs[i][1]+2)];
   }
   return runs;
+}
+/* black-on-white crop -> ink mask with a threshold chosen for just this line (Otsu): sharper word gaps than the whole-page mask */
+function scLineBin(cv,sx,sy,sw,sh){
+  sx=Math.max(0,Math.round(sx));sy=Math.max(0,Math.round(sy));sw=Math.max(4,Math.min(cv.width-sx,Math.round(sw)));sh=Math.max(4,Math.min(cv.height-sy,Math.round(sh)));
+  var d=cv.getContext('2d').getImageData(sx,sy,sw,sh).data,n=sw*sh,g=new Uint8Array(n),hist=new Uint32Array(256),i;
+  for(i=0;i<n;i++){g[i]=(d[i*4]*77+d[i*4+1]*150+d[i*4+2]*29)>>8;hist[g[i]]++}
+  var sum=0,sB=0,wB=0,mx=0,th=128,t;
+  for(t=0;t<256;t++)sum+=t*hist[t];
+  for(t=0;t<256;t++){wB+=hist[t];if(!wB)continue;var wF=n-wB;if(!wF)break;sB+=t*hist[t];var mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);if(v>mx){mx=v;th=t}}
+  var bin=new Uint8Array(n);for(i=0;i<n;i++)bin[i]=g[i]<=th?1:0;
+  return {w:sw,h:sh,bin:bin};
 }
 /* black text on white, bigger: what the recognition engine reads best */
 function scPrep(cv,sx,sy,sw,sh,k){
@@ -4449,6 +4663,9 @@ async function scStart(file){
   function tick(){return new Promise(function(r){setTimeout(r,40)})}
   try{
     var cv=await scImage(file,1600);if(dead)return;
+    say('در حال صاف کردن عکس…',.03);await tick();
+    try{var dk=scDeskew(cv);cv=dk.cv}catch(e0){}
+    if(dead)return;
     await new Promise(function(r){img.onload=r;img.src=cv.toDataURL('image/jpeg',.85)});
     ov.width=cv.width;ov.height=cv.height;
     say('در حال پیدا کردن خطوط جدول…',.05);await tick();if(dead)return;
@@ -4480,36 +4697,75 @@ async function scStart(file){
       var rs=await worker.recognize(oc);
       return {t:scClean(rs&&rs.data&&rs.data.text),q:(rs&&rs.data&&rs.data.confidence)||0};
     }
+    /* a crop of the sharpened picture (cv coordinates) */
+    function crop(cx0,cy0,cx1,cy1,k){return scPrep(E.cv,cx0*E.s,cy0*E.s,(cx1-cx0)*E.s,(cy1-cy0)*E.s,k)}
+    /* one text line: read it whole, and word by word whenever the whole-line reading glued words together or is unsure */
+    async function readLine(x0,x1,ya,yb){
+      var lh=yb-ya+1,k=Math.max(1,Math.min(5,34/Math.max(8,lh*E.s)));
+      var lb=scLineBin(E.cv,x0*E.s,ya*E.s,(x1-x0)*E.s,lh*E.s),bx=scWordBoxes(lb,0,lb.w,0,lb.h-1).map(function(q){return [x0+q[0]/E.s,x0+q[1]/E.s]});
+      if(!bx.length)return null;
+      var pad=3,lx0=Math.max(x0,bx[0][0]-pad),lx1=Math.min(x1,bx[bx.length-1][1]+pad);
+      await mode('7');
+      var full=await read(crop(lx0,ya,lx1,yb+1,k)),fw=full.t.split(' ').filter(Boolean).length;
+      if(scGood(full.t,full.q)&&full.q>=45&&fw>=bx.length)return {t:full.t,q:full.q};
+      if(bx.length===1&&scGood(full.t,full.q))return {t:full.t,q:full.q};
+      var words=[],qs=[],miss=0,i;
+      for(i=bx.length-1;i>=0;i--){ /* right to left = reading order */
+        var wx0=Math.max(x0,bx[i][0]-pad),wx1=Math.min(x1,bx[i][1]+pad),ww=bx[i][1]-bx[i][0],rd=null;
+        await mode('8');
+        var r1=await read(crop(wx0,ya,wx1,yb+1,k));
+        if(r1.t&&/[؀-ۿA-Za-z0-9]/.test(r1.t)&&r1.q>=15)rd=r1;
+        if(!rd){ /* second try: bigger, as one line */
+          await mode('7');
+          var r2=await read(crop(wx0-2,ya-1,wx1+2,yb+2,Math.min(6,k*1.4)));
+          if(r2.t&&/[؀-ۿA-Za-z0-9]/.test(r2.t)&&r2.q>=10)rd=r2;
+        }
+        if(rd){words.push(rd.t);qs.push(rd.q)}
+        else if(ww>lh*.35){words.push('؟');qs.push(0);miss++} /* a word is there but could not be read: keep its place */
+      }
+      if(!words.length)return scGood(full.t,full.q)?{t:full.t,q:full.q}:null;
+      var t2=words.join(' ');
+      if(scGood(full.t,full.q)&&miss&&fw>=bx.length-miss)return {t:full.t,q:full.q}; /* whole line did better than the word reads */
+      return {t:t2,q:Math.min.apply(null,qs),miss:miss};
+    }
     var raw=[],total=Y.length*n,done=0,r,c;
     for(r=0;r<Y.length&&!dead;r++){
       raw[r]=[];
       for(c=0;c<n&&!dead;c++){
-        var ix=3,x0=Math.round(X[c][0])+ix,x1=Math.round(X[c][1])-ix,y0=Math.round(Y[r][0])+ix,y1=Math.round(Y[r][1])-ix,cell={t:'',q:100};
+        var ix=4,x0=Math.round(X[c][0])+ix,x1=Math.round(X[c][1])-ix,y0=Math.round(Y[r][0])+ix,y1=Math.round(Y[r][1])-ix,cell={t:'',q:100},inked=false;
         if(x1-x0>8&&y1-y0>8){
           var runs=scInkLines(b,x0,y0,x1,y1);
           if(runs.length){
+            inked=true;
             try{
-              var hs=runs.map(function(q){return q[1]-q[0]+1}).sort(function(a,b2){return a-b2}),med=hs[hs.length>>1],blk=runs.length>7||hs[hs.length-1]>med*2.4||med>60;
-              var parts=[],qs=[];
+              var hs=runs.map(function(q){return q[1]-q[0]+1}).sort(function(a,b2){return a-b2}),med=hs[hs.length>>1],blk=runs.length>9||hs[hs.length-1]>med*2.6||med>70;
+              var parts=[],qs=[],miss=0;
               if(!blk){
-                await mode('7');
                 for(var li=0;li<runs.length;li++){
-                  var ry0=y0+runs[li][0],ry1=y0+runs[li][1]+1,hh=ry1-ry0,k=Math.max(1,Math.min(5,34/Math.max(8,(runs[li][1]-runs[li][0]+1)*E.s)));
-                  var rs1=await read(scPrep(E.cv,x0*E.s,Math.max(0,ry0)*E.s,(x1-x0)*E.s,hh*E.s,k));
-                  if(scGood(rs1.t,rs1.q)){parts.push(rs1.t);qs.push(rs1.q)}
+                  var rl=await readLine(x0,x1,y0+runs[li][0],y0+runs[li][1]);
+                  if(rl&&scGood(rl.t.replace(/؟/g,'ا'),(rl.q>=12||(rl.miss&&rl.t.replace(/؟/g,'').trim().length>=2))?20:0)){parts.push(rl.t);qs.push(rl.q);miss+=rl.miss||0}
                 }
               }else{
                 await mode('6');
-                var k2=Math.max(1,Math.min(4,34/Math.max(8,med*E.s))),rs2=await read(scPrep(E.cv,x0*E.s,y0*E.s,(x1-x0)*E.s,(y1-y0)*E.s,k2));
-                if(scGood(rs2.t,rs2.q)){parts.push(rs2.t);qs.push(rs2.q)}
+                var k2=Math.max(1,Math.min(4,34/Math.max(8,med*E.s))),rs2=await read(crop(x0,y0,x1,y1,k2));
+                if(scGood(rs2.t,rs2.q>=12?20:0)){parts.push(rs2.t);qs.push(rs2.q)}
               }
               parts=parts.map(function(x,ix){return ix?scFix(x):scHead(x)});
               if(parts.length)cell={t:parts[0]+(parts.length>1?'\n'+parts.slice(1).join(' '):''),q:Math.min.apply(null,qs)};
             }catch(e2){}
           }
+          if(inked){ /* a small picture of the cell, so every cell can be checked against the photo on the review screen */
+            try{
+              var tw=Math.min(280,Math.round((x1-x0)*E.s)),tc=document.createElement('canvas'),th=Math.max(10,Math.round((y1-y0)*E.s*tw/Math.max(1,(x1-x0)*E.s)));
+              tc.width=tw;tc.height=th;tc.getContext('2d').drawImage(E.cv,x0*E.s,y0*E.s,(x1-x0)*E.s,(y1-y0)*E.s,0,0,tw,th);
+              cell.im=tc.toDataURL('image/jpeg',.7);
+            }catch(e4){}
+            if(!cell.t)cell.q=0; /* ink but nothing read: shown in red with its picture, to type by hand */
+            cell.ink=true;
+          }
         }
         raw[r][c]=cell;done++;
-        octx.fillStyle=cell.t?'rgba(34,180,91,.32)':'rgba(120,130,160,.16)';octx.fillRect(x0,y0,x1-x0,y1-y0);
+        octx.fillStyle=cell.t?'rgba(34,180,91,.32)':cell.ink?'rgba(235,64,52,.35)':'rgba(120,130,160,.16)';octx.fillRect(x0,y0,x1-x0,y1-y0);
         say('در حال اسکن و خواندن خانه‌ها… '+fa(done)+' از '+fa(total),.15+.8*done/total);
       }
     }
@@ -4533,13 +4789,14 @@ function scReview(w,raw,n,exact,rtl0){
     for(p=0;p<7;p++)h+='<div class="sc-h">پارت '+fa(p+1)+'</div>';
     for(d=0;d<7;d++){
       h+='<div class="sc-d">'+TT_DAYS[d]+'</div>';
-      for(p=0;p<7;p++){var v=vals[d][p];h+='<textarea class="sc-c'+(v.t&&v.q<60?' low':'')+'" rows="3" maxlength="380" data-d="'+d+'" data-p="'+p+'" aria-label="'+TT_DAYS[d]+' پارت '+fa(p+1)+'">'+esc(v.t)+'</textarea>'}
+      for(p=0;p<7;p++){var v=vals[d][p];var bad=v.ink&&!v.t,warn=v.t&&(v.q<60||v.t.indexOf('؟')>=0);
+        h+='<div class="sc-w">'+(v.im?'<img alt="" src="'+v.im+'">':'')+'<textarea class="sc-c'+(bad?' bad':warn?' low':'')+'" rows="'+(v.im?2:3)+'" maxlength="380" data-d="'+d+'" data-p="'+p+'" aria-label="'+TT_DAYS[d]+' پارت '+fa(p+1)+'"'+(bad?' placeholder="اینجا را خودت بنویس"':'')+'>'+esc(v.t)+'</textarea></div>'}
     }
     return h+'</div>';
   }
   function count(){var n=0;vals.forEach(function(r){r.forEach(function(v){if(v.t)n++})});return n}
   function paint(){
-    body.innerHTML='<p class="sc-note">'+(count()?fa(count())+' خانه خوانده شد. ':'چیزی خوانده نشد. ')+'خانه‌های زردرنگ را بیشتر نگاه کن، چون تشخیص‌شان کم‌اطمینان‌تر بود. هر خانه را می‌شود همین‌جا درست کرد.'+(exact?'':' خطوط جدول در عکس دقیق پیدا نشد و خانه‌ها یک‌اندازه فرض شدند؛ اگر جای نوشته‌ها اشتباه است، عکس را صاف‌تر و از نزدیک‌تر بگیر.')+'</p>'+
+    body.innerHTML='<p class="sc-note">'+(count()?fa(count())+' خانه خوانده شد. ':'چیزی خوانده نشد. ')+'بالای هر خانه، تکه‌ای از عکس همان خانه است تا با متن مقایسه‌اش کنی. خانه‌ی زرد یعنی کم‌اطمینان، خانه‌ی قرمز یعنی نوشته دیده شد ولی خوانده نشد، و «؟» جای کلمه‌ای است که خوانده نشد. هر خانه را می‌شود همین‌جا درست کرد.'+(exact?'':' خطوط جدول در عکس دقیق پیدا نشد و خانه‌ها یک‌اندازه فرض شدند؛ اگر جای نوشته‌ها اشتباه است، عکس را صاف‌تر و از نزدیک‌تر بگیر.')+'</p>'+
       '<div class="sc-sc">'+grid()+'</div>'+
       '<div class="sc-act"><button type="button" class="tt-btn pri" data-sc="apply">'+icon('check')+'اعمال روی جدول</button>'+
       '<button type="button" class="tt-btn" data-sc="flip">'+icon('edit')+'ترتیب پارت‌ها برعکس است</button>'+
@@ -4603,6 +4860,7 @@ function ttCommit(name){
   var nm=ttName(t);
   if(p){p.name=nm;p.upd=Date.now();p.data=ttClone(t)}
   else{p={id:uid(),name:nm,upd:Date.now(),data:ttClone(t)};pl.push(p);state.profile.ttCur=p.id}
+  kcRecordPlan(t,nm);
   ttBase=ttSnap();persist();ttSetView(true);
   toast('برنامه‌ی «'+nm+'» ذخیره شد',null,null,'ok');
 }
@@ -5284,6 +5542,7 @@ function rpStore(){
   var k=rpDayKey();
   rpD()[k]={sp:Math.min(sp,1440),cl:Math.min(cl,1440),te:Math.min(te,5000),tc:Math.min(tc,5000),cr:Math.min(cr,5000),n:n,t:rp.txt.slice(0,9000),ts:Date.now()};
   state.profile.rp=rpClean(state.profile.rp);state.profile.rpd=null;
+  kcRecordReport(k);
   mutate();notify('ok','گزارش ذخیره شد',F.long.format(parse(k)));
 }
 function rpHistHTML(){
@@ -5353,9 +5612,18 @@ function rpDelSaved(){
 /* ---------- Konkooria smart coach: reads the study hours + daily reports and gives advice
    (more tests, more hours) and a suggested timetable built from the user's own one (save it or reject it) ---------- */
 var KC_N=14;
+function kcFbClean(f){
+  if(!f||typeof f!=='object'||!Array.isArray(f.it))return null;
+  var it=f.it.slice(0,8).map(function(x){
+    if(!x||typeof x.h!=='string'||typeof x.t!=='string')return null;
+    return {ic:/^[a-z]{1,12}$/.test(x.ic)?x.ic:'bulb',h:x.h.slice(0,80),t:x.t.slice(0,600)};
+  }).filter(Boolean);
+  if(!it.length)return null;
+  return {k:typeof f.k==='string'?f.k.slice(0,40):'',ts:Number(f.ts)||0,it:it};
+}
 function kcClean(x){
-  var o={dis:'',ts:0};
-  if(x&&typeof x==='object'){if(typeof x.dis==='string'&&/^[\w-]{0,24}$/.test(x.dis))o.dis=x.dis;o.ts=Number(x.ts)||0}
+  var o={dis:'',ts:0,fr:null,fp:null};
+  if(x&&typeof x==='object'){if(typeof x.dis==='string'&&/^[\w-]{0,24}$/.test(x.dis))o.dis=x.dis;o.ts=Number(x.ts)||0;o.fr=kcFbClean(x.fr);o.fp=kcFbClean(x.fp)}
   return o;
 }
 function kcD(){var p=state.profile;p.kc=kcClean(p.kc);return p.kc}
@@ -5543,6 +5811,78 @@ function kcMakeTests(v,a){
   }
   mutate();toast(fa(n)+' کار تست به برنامه‌ریز اضافه شد',null,null,'ok');
 }
+/* ---- the coach's opinion on the LAST saved report and the LAST saved plan.
+   Each new report / plan replaces the previous opinion (only one of each is ever kept). ---- */
+function kcFbReport(k){
+  var r=rpD()[k];if(!r)return null;
+  var a=kcAnalyze(KC_N),g=kkD().goal,it=[],m=Math.max(kkDay(k),r.sp),others=a.N>1?(a.tot-m)/(a.N-1):0;
+  var sum='امروز '+kkFmt(m)+' مطالعه ثبت کرده‌ای';
+  if(g)sum+=m>=g?' و به هدف روزانه‌ات ('+kkFmt(g)+') رسیدی. آفرین!':' که '+kkFmt(g-m)+' کمتر از هدفت ('+kkFmt(g)+') است.';
+  else sum+='.';
+  if(others>0)sum+=m>others*1.15?' از میانگین روزهای دیگرت بیشتر بود.':(m<others*.8?' از میانگین روزهای دیگرت کمتر بود.':' نزدیک به میانگین همیشگی‌ات بود.');
+  it.push({ic:'clock',h:'ساعت مطالعه',t:sum});
+  if(!r.te){
+    it.push({ic:'test',h:'تست',t:'در این گزارش تستی ثبت نشده. فردا بعد از هر پارت مطالعه چند تست بزن و تعداد و درصد را در گزارش بنویس.'});
+  }else{
+    var tx='در این گزارش '+fa(r.te)+' تست زده‌ای';
+    if(r.tc>=10){
+      var ac=Math.round(r.cr/r.tc*100);
+      tx+=' و درصد درست '+fa(ac)+'٪ بوده. ';
+      tx+=ac<50?'درصد پایین است؛ قبل از تست بیشتر، غلط‌ها را تحلیل کن و مبحث را دوباره بخوان.':(ac>=75?'عالی است؛ فردا چند تست سخت‌تر یا زماندار اضافه کن.':'خوب است؛ با مرور غلط‌ها می‌توانی از این هم بالاتر بروی.');
+    }else tx+='. برای تحلیل دقیق‌تر درصد هر پارت را هم بنویس.';
+    it.push({ic:'test',h:'تست',t:tx});
+  }
+  try{
+    var ps=rpParse(r.t).parts.map(function(p){var te=kkNum(p.te||''),pc=kcPct(p.pc);return {l:kcLesson(p.n),te:te,pc:pc}}).filter(function(x){return x.l&&x.pc!=null&&x.te>=5});
+    if(ps.length>=2){
+      ps.sort(function(x,y){return x.pc-y.pc});
+      var lo=ps[0],hi=ps[ps.length-1];
+      if(lo.pc<hi.pc)it.push({ic:'target',h:'درس‌ها',t:'بهترین نتیجه‌ات در «'+hi.l+'» ('+fa(Math.round(hi.pc))+'٪) و ضعیف‌ترین در «'+lo.l+'» ('+fa(Math.round(lo.pc))+'٪) بود. فردا یک مرور کوتاه روی «'+lo.l+'» بگذار.'});
+    }
+  }catch(e){}
+  if(r.sp&&r.cl&&r.cl>r.sp*1.5)it.push({ic:'bulb',h:'کلاس و مطالعه',t:'زمان کلاس '+kkFmt(r.cl)+' بوده و مطالعه‌ی شخصی '+kkFmt(r.sp)+'. بخشی از مطالب کلاس را همان روز مرور کن تا یادت بماند.'});
+  return {k:k,ts:Date.now(),it:it};
+}
+function kcFbPlan(t,name){
+  if(!t||!Array.isArray(t.rows)||!t.cells)return null;
+  var R=t.rows.slice(0,TT_MAX),it=[],cnt=[],lessons={},tests=0,total=0,d;
+  for(d=0;d<7;d++){
+    var n=0;
+    R.forEach(function(r){
+      var c=ttCell(t,r.id,d);if(!c||!c.t.trim())return;
+      n++;var l=kcLesson(c.t);if(l)lessons[l]=(lessons[l]||0)+1;
+      if(/تست/.test(c.t))tests++;
+    });
+    cnt.push(n);total+=n;
+  }
+  if(!total)return null;
+  var act=cnt.filter(function(x){return x>0}).length;
+  it.push({ic:'calendar',h:'نمای کلی',t:'برنامه‌ی «'+name||'بدون نام'+'» '+fa(total)+' پارت در '+fa(act)+' روز هفته دارد (میانگین '+fa(Math.round(total/act*10)/10)+' پارت در روزهای پر).'});
+  var emp=[];cnt.forEach(function(x,i){if(!x)emp.push(TT_DAYS[i])});
+  if(emp.length&&emp.length<=3)it.push({ic:'clock',h:'روزهای خالی',t:emp.join('، ')+' خالی مانده است. اگر روز استراحت است خوب است، وگرنه یک یا دو پارت سبک بگذار تا پیوستگی حفظ شود.'});
+  else if(!emp.length&&cnt.every(function(x){return x>=R.length}))it.push({ic:'clock',h:'فشردگی',t:'همه‌ی خانه‌های هفته پر است. یک بازه‌ی آزاد برای مرور و استراحت بگذار تا برنامه عملی بماند.'});
+  var ln=Object.keys(lessons).sort(function(x,y){return lessons[y]-lessons[x]});
+  if(ln.length>=3){
+    var mx=ln[0],mn=ln[ln.length-1];
+    if(lessons[mx]>=lessons[mn]*2.5&&lessons[mx]-lessons[mn]>=3)it.push({ic:'book',h:'تعادل درس‌ها',t:'«'+mx+'» '+fa(lessons[mx])+' پارت گرفته و «'+mn+'» فقط '+fa(lessons[mn])+'. اگر عمدی نیست، یک پارت از اولی به دومی بده.'});
+    else it.push({ic:'book',h:'تعادل درس‌ها',t:'توزیع درس‌ها نسبتاً متعادل است ('+fa(ln.length)+' درس مختلف).'});
+  }
+  it.push(tests?{ic:'test',h:'تست در برنامه',t:fa(tests)+' پارت تست در برنامه داری. '+(tests<Math.max(2,total/6)?'برای کنکور کمی بیشتر کردنش خوب است.':'نسبتش مناسب است.')}:{ic:'test',h:'تست در برنامه',t:'هیچ پارت تستی در برنامه نیست. حداقل یک پارت تست بعد از درس‌های اصلی بگذار.'});
+  try{
+    var a=kcAnalyze(KC_N),sl=Object.keys(a.subj).filter(function(n){return a.subj[n].tc>=15&&a.subj[n].cr/a.subj[n].tc<.55}).sort(function(x,y){return a.subj[x].cr/a.subj[x].tc-a.subj[y].cr/a.subj[y].tc});
+    if(sl.length&&ln.length){var avg=total/ln.length,w=sl[0];if((lessons[w]||0)<avg)it.push({ic:'target',h:'درس ضعیف',t:'در گزارش‌ها «'+w+'» درصد پایینی دارد ولی در برنامه فقط '+fa(lessons[w]||0)+' پارت گرفته. پارت بیشتری برایش بگذار.'})}
+  }catch(e){}
+  return {k:name||'',ts:Date.now(),it:it};
+}
+/* record the opinion: overwrites the previous one */
+function kcRecordReport(k){try{kcD().fr=kcFbClean(kcFbReport(k))}catch(e){}}
+function kcRecordPlan(t,name){try{kcD().fp=kcFbClean(kcFbPlan(t,name))}catch(e){}}
+function kcFbHTML(f,title,sub){
+  if(!f)return '';
+  return '<div class="kc-fb"><h3>'+title+'</h3><p class="hint kc-fs">'+sub+'</p><div class="kc-tips">'+f.it.map(function(x){
+    return '<div class="kc-tip"><span class="kc-ti">'+icon(x.ic)+'</span><div><b>'+esc(x.h)+'</b><p>'+esc(x.t)+'</p></div></div>';
+  }).join('')+'</div></div>';
+}
 var kcEl=null;
 function openCoach(){
   if(kcEl)return;
@@ -5552,6 +5892,10 @@ function openCoach(){
   var ah=adv.map(function(x,i){
     return '<div class="kc-tip"><span class="kc-ti">'+icon(x.ic)+'</span><div><b>'+x.h+'</b><p>'+x.t+'</p>'+(x.act?'<button type="button" class="tt-btn" data-kc="act" data-i="'+i+'">'+x.act.lb+'</button>':'')+'</div></div>';
   }).join('');
+  var fbh='',fr=dis.fr,fp=dis.fp;
+  if(fr){var fd='';try{fd=F.long.format(parse(fr.k))}catch(e){}fbh+=kcFbHTML(fr,'نظر مربی درباره‌ی آخرین گزارش',fd)}
+  if(fp)fbh+=kcFbHTML(fp,'نظر مربی درباره‌ی آخرین برنامه','«'+esc(fp.k||'بدون نام')+'»');
+  if(fbh)fbh+='<h3 class="kc-h2">تحلیل ۱۴ روز اخیر</h3>';
   var ph='';
   if(!src)ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">برای اینکه مربی یک جدول شبیه خودت پیشنهاد بدهد، اول جدول هفتگی خودت را در «'+'کنکوریا'+'» بنویس و ذخیره کن.</p><button type="button" class="tt-btn pri" data-kc="tt">باز کردن جدول</button></div>';
   else if(!pl)ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">جدول تو فعلاً درس‌های قابل تشخیص ندارد. نام درس‌ها را در خانه‌ها بنویس (مثلاً «ریاضی») تا مربی بتواند پیشنهاد بدهد.</p></div>';
@@ -5562,7 +5906,7 @@ function openCoach(){
       (rej?'<p class="kc-rej">این پیشنهاد را رد کرده‌ای.</p><div class="tt-eb"><button type="button" class="tt-btn" data-kc="again">نمایش دوباره</button></div>'
         :kcPlanHTML(pl)+'<div class="tt-eb"><button type="button" class="tt-btn pri" data-kc="save">ذخیره‌ی جدول پیشنهادی</button><button type="button" class="tt-btn" data-kc="rej">رد کردن</button></div>')+'</div>';
   }
-  var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>مربی هوشمند</h2><button type="button" data-kc="close">بستن</button></div><div class="kc-body">'+st+'<div class="kc-tips">'+ah+'</div>'+ph+'</div>','مربی هوشمند');
+  var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>مربی هوشمند</h2><button type="button" data-kc="close">بستن</button></div><div class="kc-body">'+st+fbh+'<div class="kc-tips">'+ah+'</div>'+ph+'</div>','مربی هوشمند');
   kcEl=sw;
   var w=sw.w,orig=sw.close;
   sw.close=function(){kcEl=null;orig()};
@@ -5582,7 +5926,7 @@ function openCoach(){
       var nm=(ttName(pl.data)||'برنامه')+' (پیشنهادی)',p={id:uid(),name:nm.slice(0,80),upd:Date.now(),data:ttClone(pl.data)};
       p.data.title=p.data.title||'برنامه کنکوریا';
       if(p.data.info&&p.data.info[1]&&typeof p.data.info[1]==='object')p.data.info[1].t=nm.slice(0,80);
-      ttPlans().push(p);kcD().dis='';mutate();sw.close();
+      ttPlans().push(p);kcD().dis='';kcRecordPlan(p.data,nm);mutate();sw.close();
       toast('«'+nm+'» ذخیره شد؛ از «کنکوریا ← جدول» باز می‌شود',null,null,'ok');
     }else if(k==='rej'){kcD().dis=pl.sig;kcD().ts=Date.now();persist();sw.close();toast('پیشنهاد رد شد',null,null,'info')}
     else if(k==='again'){kcD().dis='';persist();sw.close();openCoach()}
@@ -5593,7 +5937,8 @@ function kcCard(){
   var sm='از گزارش‌ها و ساعت‌هایت راهکار بگیر و جدول پیشنهادی ببین';
   try{
     var a=kcAnalyze(KC_N);
-    if(a.act>=3||a.teDays>=2)sm='میانگین '+kkShort(a.avg)+' در روز'+(a.teDays?' · '+fa(Math.round(a.teAvg))+' تست':'')+' · راهکار و جدول پیشنهادی';
+    var fq=kcD();if(fq.fr||fq.fp)sm='نظر مربی درباره‌ی آخرین '+(fq.fr&&fq.fp?'گزارش و برنامه':fq.fr?'گزارش':'برنامه')+' آماده است';
+    else if(a.act>=3||a.teDays>=2)sm='میانگین '+kkShort(a.avg)+' در روز'+(a.teDays?' · '+fa(Math.round(a.teAvg))+' تست':'')+' · راهکار و جدول پیشنهادی';
   }catch(er){}
   return '<button type="button" class="wrcard glass" data-act="openCoach"><span class="ib" style="background:linear-gradient(145deg,#a78bfa,#6d4ae0)">'+icon('spark')+'</span><div><b>مربی هوشمند<span class="vbadge">'+icon('star')+'جدید</span></b><small>'+sm+'</small></div></button>';
 }
@@ -6171,18 +6516,27 @@ function imvDo(){
 
 /* ---------- in-app PDF viewer ----------
    Pages are drawn by the native PdfViewer plugin (Android PdfRenderer) one at a time as JPEGs, only for the pages near the screen. */
-var pdfv={tool:'hand',col:'#ef4444',an:{},rat:[],undo:[],drw:null,anT:0,on:false,el:null,sc:null,pgs:null,rec:null,io:null,n:0,zoom:1,st:{},q:[],busy:0,tok:0,cur:1,raf:0,svT:0,tap:0,tapX:0,tapY:0,sx:0,sy:0};
-var PV_Z=[1,1.5,2,3];
+var pdfv={tool:'hand',col:'#ef4444',an:{},rat:[],undo:[],drw:null,anT:0,on:false,el:null,sc:null,pgs:null,rec:null,io:null,n:0,zoom:1,st:{},q:[],busy:0,tok:0,cur:1,raf:0,svT:0,tap:0,tapX:0,tapY:0,sx:0,sy:0,pz:null,pzUsed:0,pw:{p:4,h:24}};
+var PV_Z=[1,1.5,2,3,4],PV_ZMAX=4;
+/* grid-paper background (شطرنجی): square cells over every page, 24 cells across; the choice is remembered */
+var PV_GRID=24;
+function pvGridOn(){try{return localStorage.getItem('ario_pdfgrid')==='1'}catch(e){return false}}
+function pvGridSet(on){
+  try{if(on)localStorage.setItem('ario_pdfgrid','1');else localStorage.removeItem('ario_pdfgrid')}catch(e){}
+  if(!pdfv.el)return;
+  pdfv.el.classList.toggle('gr',on);
+  var b=pdfv.el.querySelector('[data-pv="grid"]');if(b)b.setAttribute('aria-pressed',on);
+}
 actions.pdfOpen=async function(d){
   if(pdfv.on)return;
   var P=tbNative();
   if(!P){toast('خواندن PDF فقط در برنامهٔ اندروید کار می‌کند',null,null,'warn');return}
   var rec=tbD().pdfs.find(function(x){return x.id===d.v});if(!rec)return;
-  pdfv.on=true;pdfv.rec=rec;pdfv.tool='hand';pdfv.an=anLoad(rec.id);pdfv.rat=[];pdfv.undo=[];pdfv.drw=null;pdfv.n=0;pdfv.zoom=1;pdfv.st={};pdfv.q=[];pdfv.busy=0;pdfv.tok++;pdfv.cur=rec.lp||1;
+  pdfv.on=true;pdfv.rec=rec;pdfv.tool='hand';pdfv.an=anLoad(rec.id);pdfv.rat=[];pdfv.undo=[];pdfv.drw=null;pdfv.n=0;pdfv.zoom=1;pdfv.pz=null;pdfv.pzUsed=0;pvPwLoad();pdfv.st={};pdfv.q=[];pdfv.busy=0;pdfv.tok++;pdfv.cur=rec.lp||1;
   var el=document.createElement('div');el.className='pdfv';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');
   el.innerHTML='<div class="pdfv-top"><button type="button" class="round glass" data-pv="close" aria-label="بستن">'+icon('close')+'</button><div class="pdfv-t"><b></b><small id="pvPg"></small></div><div class="pdfv-z"><button type="button" class="round glass" data-pv="zout" aria-label="کوچک‌نمایی">−</button><button type="button" class="round glass" data-pv="zin" aria-label="بزرگ‌نمایی">+</button></div></div>'+
     '<div class="pdfv-sc"><div class="pdfv-ld">در حال باز کردن…</div><div class="pdfv-pgs"></div></div>'+
-    '<div class="pdfv-tl"><button type="button" class="pdfv-tb" data-pv="t-hand" aria-pressed="true">دست</button><button type="button" class="pdfv-tb" data-pv="t-pen" aria-pressed="false">قلم</button><button type="button" class="pdfv-tb" data-pv="t-hl" aria-pressed="false">هایلایت</button><button type="button" class="pdfv-tb" data-pv="t-er" aria-pressed="false">پاک‌کن</button><span class="pdfv-cs">'+['#ef4444','#facc15','#22c55e','#2563eb'].map(function(c,k){return '<button type="button" class="pdfv-cd" data-pv="c" data-c="'+c+'" style="background:'+c+'" aria-label="رنگ" aria-pressed="'+(k===0)+'"></button>'}).join('')+'</span><button type="button" class="pdfv-tb" data-pv="undo">بازگردانی</button></div>'+
+    '<div class="pdfv-tl"><button type="button" class="pdfv-tb" data-pv="t-hand" aria-pressed="true">دست</button><button type="button" class="pdfv-tb" data-pv="t-pen" aria-pressed="false">قلم</button><button type="button" class="pdfv-tb" data-pv="t-hl" aria-pressed="false">هایلایت</button><button type="button" class="pdfv-tb" data-pv="t-er" aria-pressed="false">پاک‌کن</button><span class="pdfv-cs">'+['#ef4444','#facc15','#22c55e','#2563eb'].map(function(c,k){return '<button type="button" class="pdfv-cd" data-pv="c" data-c="'+c+'" style="background:'+c+'" aria-label="رنگ" aria-pressed="'+(k===0)+'"></button>'}).join('')+'</span><button type="button" class="pdfv-tb" data-pv="undo">بازگردانی</button><button type="button" class="pdfv-tb" data-pv="grid" aria-pressed="false">شطرنجی</button><div class="pdfv-w"><span class="pdfv-wl">قطر خط</span><input type="range" id="pvW" dir="ltr" aria-label="قطر خط"><span class="pdfv-wp"><i id="pvWp"></i></span></div></div>'+
     '<div class="pdfv-bt"><button type="button" class="pdfv-b glass" data-pv="prev">قبلی</button><label class="pdfv-go"><input class="field" id="pvGo" type="number" inputmode="numeric" min="1" aria-label="رفتن به صفحه"><span id="pvOf"></span></label><button type="button" class="pdfv-b glass" data-pv="next">بعدی</button></div>';
   el.querySelector('.pdfv-t b').textContent=rec.n;
   pdfv.el=el;pdfv.sc=el.querySelector('.pdfv-sc');pdfv.pgs=el.querySelector('.pdfv-pgs');
@@ -6195,18 +6549,32 @@ actions.pdfOpen=async function(d){
     if(pg){var i=+pg.dataset.i;pg.classList.remove('err');pdfv.st[i]=0;pvLoad(i)}
   });
   pdfv.sc.addEventListener('scroll',pvOnScroll,{passive:true});
-  pdfv.sc.addEventListener('touchstart',function(e){if(e.touches.length===1){pdfv.sx=e.touches[0].clientX;pdfv.sy=e.touches[0].clientY}},{passive:true});
+  pdfv.sc.addEventListener('touchstart',function(e){
+    if(e.touches.length===1){pdfv.sx=e.touches[0].clientX;pdfv.sy=e.touches[0].clientY}
+    else if(e.touches.length===2)pvPinchStart(e);
+  },{passive:true});
+  pdfv.sc.addEventListener('touchmove',function(e){
+    if(pdfv.pz&&e.touches.length>=2){if(e.cancelable)e.preventDefault();pvPinchMove(e)}
+  },{passive:false});
+  pdfv.sc.addEventListener('touchcancel',function(){pvPinchEnd();pdfv.pzUsed=0},{passive:true});
   pdfv.sc.addEventListener('touchend',function(e){
+    if(pdfv.pz&&e.touches.length<2)pvPinchEnd();
+    if(pdfv.pzUsed){if(!e.touches.length)pdfv.pzUsed=0;pdfv.tap=0;return}
     if(e.touches.length||e.changedTouches.length!==1||!pdfv.n||pdfv.tool!=='hand')return;
     var t=e.changedTouches[0],now=Date.now();
     if(Math.abs(t.clientX-pdfv.sx)>10||Math.abs(t.clientY-pdfv.sy)>10){pdfv.tap=0;return}
-    if(now-pdfv.tap<320&&Math.abs(t.clientX-pdfv.tapX)<30&&Math.abs(t.clientY-pdfv.tapY)<30){pdfv.tap=0;pvSetZoom(pdfv.zoom>1?1:2);return}
+    if(now-pdfv.tap<320&&Math.abs(t.clientX-pdfv.tapX)<30&&Math.abs(t.clientY-pdfv.tapY)<30){pdfv.tap=0;pvSetZoom(pdfv.zoom>1?1:2.5,t.clientX,t.clientY);return}
     pdfv.tap=now;pdfv.tapX=t.clientX;pdfv.tapY=t.clientY;
   },{passive:true});
   pdfv.pgs.addEventListener('pointerdown',anDown);pdfv.pgs.addEventListener('pointermove',anMove);pdfv.pgs.addEventListener('pointerup',anUp);pdfv.pgs.addEventListener('pointercancel',anUp);
   var go=el.querySelector('#pvGo');
   go.addEventListener('change',function(){var v=Math.round(+go.value);if(v>=1)pvGoTo(Math.min(v,pdfv.n||1));else pvLabel()});
   go.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go.blur()}});
+  var wr=el.querySelector('#pvW');
+  wr.addEventListener('input',function(){var k=pdfv.tool==='hl'?'h':'p';pdfv.pw[k]=+wr.value;pvWPaint()});
+  wr.addEventListener('change',pvPwSave);
+  pvWSync();
+  pvGridSet(pvGridOn());
   document.body.appendChild(el);
   try{history.pushState({pdf:1},'',location.href)}catch(e){}
   requestAnimationFrame(function(){requestAnimationFrame(function(){el.classList.add('open')})});
@@ -6220,7 +6588,7 @@ actions.pdfOpen=async function(d){
   if(pdfv.cur>n)pdfv.cur=n;
   var ld=el.querySelector('.pdfv-ld');if(ld)ld.remove();
   var h='',i,r;
-  for(i=0;i<n;i++){r=+info.ratios[i];if(!(r>0.1&&r<10))r=1.4142;pdfv.rat[i]=r;h+='<div class="pdfv-p" data-i="'+i+'" style="padding-top:'+(r*100).toFixed(3)+'%"><img alt="" draggable="false" decoding="async"><span class="pdfv-n">'+fa(i+1)+'</span><svg class="pdfv-an" viewBox="0 0 1000 '+Math.round(r*10000)/10+'" preserveAspectRatio="none">'+anSvg(i)+'</svg></div>'}
+  for(i=0;i<n;i++){r=+info.ratios[i];if(!(r>0.1&&r<10))r=1.4142;pdfv.rat[i]=r;h+='<div class="pdfv-p" data-i="'+i+'" style="padding-top:'+(r*100).toFixed(3)+'%;--gy:'+(100/PV_GRID/r).toFixed(4)+'%"><img alt="" draggable="false" decoding="async"><span class="pdfv-n">'+fa(i+1)+'</span><svg class="pdfv-an" viewBox="0 0 1000 '+Math.round(r*10000)/10+'" preserveAspectRatio="none">'+anSvg(i)+'</svg></div>'}
   pdfv.pgs.innerHTML=h;
   el.querySelector('#pvOf').textContent='از '+fa(n);
   go.max=n;
@@ -6304,16 +6672,64 @@ function pvGoTo(p){
   pdfv.cur=p;pvLabel();
   if(pdfv.rec){pdfv.rec.lp=p;clearTimeout(pdfv.svT);pdfv.svT=setTimeout(persist,800)}
 }
-function pvSetZoom(z){
-  var sc=pdfv.sc;if(!sc||!pdfv.pgs||!pdfv.n||z===pdfv.zoom)return;
-  var fy=sc.scrollHeight>0?(sc.scrollTop+sc.clientHeight/2)/sc.scrollHeight:0;
+function pvSetZoom(z,fx,fy,tx,ty){
+  var sc=pdfv.sc;if(!sc||!pdfv.pgs||!pdfv.n)return;
+  z=Math.max(1,Math.min(PV_ZMAX,z));if(z<1.08)z=1;
+  if(Math.abs(z-pdfv.zoom)<0.001)return;
+  var rect=sc.getBoundingClientRect(),rtl=getComputedStyle(sc).direction==='rtl';
+  if(typeof fx!=='number'||typeof fy!=='number'){fx=rect.left+rect.width/2;fy=rect.top+rect.height/2}
+  if(typeof tx!=='number'||typeof ty!=='number'){tx=fx;ty=fy}
+  /* the point of the document under (fx,fy) should end up under (tx,ty) */
+  var oldMax=sc.scrollWidth-sc.clientWidth,offL=rtl?sc.scrollLeft+oldMax:sc.scrollLeft;
+  var px=offL+(fx-rect.left),py=sc.scrollTop+(fy-rect.top),r=z/pdfv.zoom;
   pdfv.zoom=z;pdfv.tok++;pdfv.q=[];pdfv.st={};
   pdfv.pgs.style.width=(z*100)+'%';
-  var c=pdfv.pgs.children,i,im;
-  for(i=0;i<c.length;i++){c[i].classList.remove('ok','err');im=c[i].querySelector('img');if(im)im.removeAttribute('src')}
-  sc.scrollTop=fy*sc.scrollHeight-sc.clientHeight/2;
-  if(z>1){var mx=sc.scrollWidth-sc.clientWidth,rtl=getComputedStyle(sc).direction==='rtl';sc.scrollLeft=rtl?-mx/2:mx/2}
-  pvObserve();
+  var nx=(px-8)*r+8-(tx-rect.left),ny=(py-8)*r+8-(ty-rect.top);
+  sc.scrollTop=Math.max(0,ny);
+  var nm=sc.scrollWidth-sc.clientWidth;nx=Math.max(0,Math.min(nm,nx));
+  sc.scrollLeft=rtl?nx-nm:nx;
+  /* keep the pages on screen showing their old picture until the sharper one is drawn; free the rest */
+  var c=pdfv.pgs.children,i,im,rc,vis;
+  for(i=0;i<c.length;i++){
+    c[i].classList.remove('err');
+    rc=c[i].getBoundingClientRect();vis=rc.bottom>rect.top-80&&rc.top<rect.bottom+80;
+    if(!vis){c[i].classList.remove('ok');im=c[i].querySelector('img');if(im)im.removeAttribute('src')}
+  }
+  pvObserve();pvWPaint();
+}
+/* two-finger pinch: the pages follow the fingers live (CSS transform), then are redrawn sharp at the new zoom when the fingers lift */
+function pvPinchStart(e){
+  if(!pdfv.n||!pdfv.pgs||pdfv.pz)return;
+  var a=e.touches[0],b=e.touches[1];
+  var d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(d<10)return;
+  if(pdfv.drw){try{pdfv.drw.p.remove()}catch(x){}pdfv.drw=null}
+  var g=pdfv.pgs.getBoundingClientRect(),mx=(a.clientX+b.clientX)/2,my=(a.clientY+b.clientY)/2;
+  pdfv.pz={d0:d,z0:pdfv.zoom,k:1,m0x:mx,m0y:my,mx:mx,my:my,st:pdfv.sc.scrollTop,sl:pdfv.sc.scrollLeft};
+  pdfv.pzUsed=1;pdfv.tap=0;
+  pdfv.pgs.style.transformOrigin=(mx-g.left)+'px '+(my-g.top)+'px';
+  pdfv.pgs.style.willChange='transform';
+}
+function pvPinchMove(e){
+  var p=pdfv.pz;if(!p||!pdfv.pgs||!pdfv.sc)return;
+  var a=e.touches[0],b=e.touches[1];if(!a||!b)return;
+  var d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+  var z=Math.max(1,Math.min(PV_ZMAX,p.z0*d/p.d0));
+  p.k=z/p.z0;p.mx=(a.clientX+b.clientX)/2;p.my=(a.clientY+b.clientY)/2;
+  /* the page must not scroll under a pinch */
+  pdfv.sc.scrollTop=p.st;pdfv.sc.scrollLeft=p.sl;
+  pdfv.pgs.style.transform='translate('+(p.mx-p.m0x)+'px,'+(p.my-p.m0y)+'px) scale('+p.k+')';
+}
+function pvPinchEnd(){
+  var p=pdfv.pz;pdfv.pz=null;
+  var g=pdfv.pgs;
+  if(g){g.style.transform='';g.style.transformOrigin='';g.style.willChange=''}
+  if(!p||!pdfv.sc||!g)return;
+  var z=p.z0*p.k;
+  if(Math.abs(z-pdfv.zoom)<0.03){
+    /* only panned with two fingers, or barely zoomed: put the scroll back where it was */
+    pdfv.sc.scrollTop=p.st;pdfv.sc.scrollLeft=p.sl;return;
+  }
+  pvSetZoom(z,p.m0x,p.m0y,p.mx,p.my);
 }
 /* ---------- PDF annotations: pen, highlighter, eraser ----------
    Strokes are kept per PDF in localStorage ('ario_pdfan_<id>') as {pageIndex:[{t:'p'|'h',c:color,d:svg path}]},
@@ -6332,7 +6748,8 @@ function anSvg(i){
   if(!Array.isArray(l))return h;
   l.forEach(function(s,k){
     if(!s||(s.t!=='p'&&s.t!=='h')||typeof s.c!=='string'||!/^#[0-9a-fA-F]{6}$/.test(s.c)||typeof s.d!=='string'||!/^[ML0-9., -]+$/.test(s.d))return;
-    h+='<g data-k="'+k+'"><path class="'+(s.t==='h'?'hl':'pn')+'" d="'+s.d+'" stroke="'+s.c+'"/><path class="hit" d="'+s.d+'"/></g>';
+    var w=+s.w,ws=w>=0.5&&w<=80?' style=\"stroke-width:'+w+'\"':'',hs=w>=0.5&&w<=80?' style=\"stroke-width:'+Math.max(28,w+14)+'\"':'';
+    h+='<g data-k="'+k+'"><path class="'+(s.t==='h'?'hl':'pn')+'" d="'+s.d+'" stroke="'+s.c+'"'+ws+'/><path class="hit" d="'+s.d+'"'+hs+'/></g>';
   });
   return h;
 }
@@ -6356,9 +6773,10 @@ function anDown(e){
   try{sv.setPointerCapture(e.pointerId)}catch(x){}
   var p=document.createElementNS('http://www.w3.org/2000/svg','path');
   p.setAttribute('class',pdfv.tool==='hl'?'hl':'pn');p.setAttribute('stroke',pdfv.col);
+  var wd=pdfv.pw[pdfv.tool==='hl'?'h':'p'];p.style.strokeWidth=wd;
   sv.appendChild(p);
   var pt=anPt(sv,e,i);
-  pdfv.drw={sv:sv,i:i,p:p,pts:[pt],id:e.pointerId,t:pdfv.tool==='hl'?'h':'p',c:pdfv.col};
+  pdfv.drw={sv:sv,i:i,p:p,pts:[pt],id:e.pointerId,t:pdfv.tool==='hl'?'h':'p',c:pdfv.col,w:wd};
   p.setAttribute('d',anPath(pdfv.drw.pts));
 }
 function anMove(e){
@@ -6371,7 +6789,7 @@ function anMove(e){
 function anUp(e){
   var d=pdfv.drw;if(!d||e.pointerId!==d.id)return;
   pdfv.drw=null;
-  var st={t:d.t,c:d.c,d:anPath(d.pts)};
+  var st={t:d.t,c:d.c,w:d.w,d:anPath(d.pts)};
   if(!Array.isArray(pdfv.an[d.i]))pdfv.an[d.i]=[];
   pdfv.an[d.i].push(st);pdfv.undo.push({i:d.i,s:st});
   if(pdfv.undo.length>200)pdfv.undo.shift();
@@ -6390,21 +6808,48 @@ function anUndo(){
   }
   toast('چیزی برای بازگردانی نیست',null,null,'info');
 }
+var PV_W={p:{min:1,max:14,step:0.5,def:4},h:{min:10,max:60,step:1,def:24}};
+function pvPwLoad(){
+  var o={p:PV_W.p.def,h:PV_W.h.def};
+  try{var j=JSON.parse(localStorage.getItem('ario_pdfpw')||'{}');
+    ['p','h'].forEach(function(k){var v=+j[k];if(v>=PV_W[k].min&&v<=PV_W[k].max)o[k]=v})}catch(e){}
+  pdfv.pw=o;
+}
+function pvPwSave(){try{localStorage.setItem('ario_pdfpw',JSON.stringify(pdfv.pw))}catch(e){}}
+/* slider follows the active tool (pen or highlighter) */
+function pvWSync(){
+  var wr=pdfv.el&&pdfv.el.querySelector('#pvW');if(!wr)return;
+  var k=pdfv.tool==='hl'?'h':'p',c=PV_W[k];
+  wr.min=c.min;wr.max=c.max;wr.step=c.step;wr.value=pdfv.pw[k];
+  pvWPaint();
+}
+function pvWPaint(){
+  var pv=pdfv.el&&pdfv.el.querySelector('#pvWp');if(!pv||!pdfv.sc)return;
+  var k=pdfv.tool==='hl'?'h':'p',w=pdfv.pw[k];
+  /* on-screen thickness of a stroke of this width at the current zoom */
+  var px=w*Math.max(0,pdfv.sc.clientWidth*pdfv.zoom-16)/1000;
+  pv.style.height=Math.max(1.5,Math.min(30,px))+'px';
+  pv.style.background=pdfv.col;pv.style.opacity=k==='h'?'.5':'1';
+}
 function pvTool(t){
   if(['hand','pen','hl','er'].indexOf(t)<0||!pdfv.el)return;
   pdfv.tool=t;
   pdfv.el.classList.toggle('dr',t==='pen'||t==='hl');
   pdfv.el.classList.toggle('er',t==='er');
+  pvWSync();
   pdfv.el.querySelectorAll('.pdfv-tb[data-pv^="t-"]').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.pv==='t-'+t)});
 }
 function pvAct(a,el){
   if(a==='close')pvClose();
   else if(a.indexOf('t-')===0)pvTool(a.slice(2));
-  else if(a==='c'&&el){pdfv.col=el.dataset.c;pdfv.el.querySelectorAll('.pdfv-cd').forEach(function(x){x.setAttribute('aria-pressed',x===el)})}
+  else if(a==='c'&&el){pdfv.col=el.dataset.c;pdfv.el.querySelectorAll('.pdfv-cd').forEach(function(x){x.setAttribute('aria-pressed',x===el)});pvWPaint()}
   else if(a==='undo')anUndo();
+  else if(a==='grid')pvGridSet(!pdfv.el.classList.contains('gr'));
   else if(a==='zin'||a==='zout'){
-    var i=PV_Z.indexOf(pdfv.zoom),j=Math.max(0,Math.min(PV_Z.length-1,i+(a==='zin'?1:-1)));
-    if(j!==i)pvSetZoom(PV_Z[j]);
+    var zc=pdfv.zoom,nz=zc,k;
+    if(a==='zin'){for(k=0;k<PV_Z.length;k++)if(PV_Z[k]>zc+0.02){nz=PV_Z[k];break}}
+    else{for(k=PV_Z.length-1;k>=0;k--)if(PV_Z[k]<zc-0.02){nz=PV_Z[k];break}}
+    if(nz!==zc)pvSetZoom(nz);
   }
   else if(a==='prev')pvGoTo(pvCur()-1);
   else if(a==='next')pvGoTo(pvCur()+1);
