@@ -26,6 +26,8 @@
   <symbol id="i-lists" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.5 4h5l-.8 5 3.3 3.5H7L10.3 9zM12 12.5V20"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M4 6.5l1.5 1.5L8 5.5M4 12.5l1.5 1.5L8 11.5M4 18.5l1.5 1.5L8 17.5M11.5 7h8.5M11.5 13h8.5M11.5 19h8.5"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5"/></symbol>
@@ -87,6 +89,7 @@
   <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5.5 8h13l-1 11.5h-11zM9 8V6.5a3 3 0 016 0V8"/></symbol>
   <symbol id="i-diamond" viewBox="0 0 24 24"><path d="M7 4.5h10l3.5 5L12 20 3.5 9.5zM3.5 9.5h17"/></symbol>
   <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-6.5z"/><path d="M11 13.5L20 4"/></symbol>
   <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 6.5a2 2 0 012-2h11a2 2 0 012 2v8a2 2 0 01-2 2H11l-4.5 3.5v-3.5a2 2 0 01-2-2z"/></symbol>
   <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></symbol>
   <symbol id="i-bus" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="14" rx="3"/><path d="M5 12h14M8.5 15h.01M15.5 15h.01M7 18v2M17 18v2"/></symbol>
@@ -148,6 +151,20 @@
     <button type="button" class="linkbtn tp-now" id="tpNow">همین حالا</button>
     <div class="tp-btns"><button type="button" class="pill3d primary" id="tpSave">ذخیره</button><button type="button" class="pill3d" id="tpCancel">انصراف</button></div>
   </div>
+</div>
+
+<div id="pnSheet" class="sheet-wrap" hidden>
+  <div class="dim" id="pnDim"></div>
+  <form class="sheet clay" id="pnForm" role="dialog" aria-modal="true" aria-labelledby="pnHead" autocomplete="off">
+    <div class="grab"></div>
+    <div class="fhead"><h2 id="pnHead">پین گروهی</h2></div>
+    <p class="hint" id="pnSub" style="margin:-6px 0 12px"></p>
+    <input class="field" id="pnName" type="text" maxlength="30" placeholder="اسم گروه، مثلاً: انجام ندادم" aria-label="اسم گروه">
+    <div class="sec"><div class="sec-h"><b>پیشنهاد</b></div><div class="chips" id="pnSug"></div></div>
+    <div class="sec" id="pnExSec"><div class="sec-h"><b>یا اضافه به گروه قبلی</b></div><div class="chips" id="pnEx"></div></div>
+    <button type="button" class="qrow" role="switch" id="pnPinRow" aria-checked="true"><span class="qt"><b>پین روی صفحه‌ی اصلی</b><small>خاموش باشد، گروه فقط ذخیره می‌شود</small></span><span class="sw"></span></button>
+    <div class="fbtns"><button type="submit" class="pill3d primary">ذخیره</button><button type="button" class="pill3d" id="pnCancel">انصراف</button></div>
+  </form>
 </div>
 
 <div id="fSheet" class="sheet-wrap" hidden>
