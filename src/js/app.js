@@ -109,7 +109,7 @@ function rkNatRank(g,P){return Math.min(rkCfgN(g),Math.max(1,Math.round(rkCurve(
 function rkQuotaShare(x){return x.sq&&RK_SQ[x.sq]?RK_SQ[x.sq].s:rkCfgQ(x.rg)}
 function rkQuotaRank(x,P){return Math.max(1,Math.round(rkCurve(P)*rkCfgN(x.g)*rkQuotaShare(x)))}
 function rkRound(r){if(r<20)return Math.max(1,Math.round(r));var p=Math.pow(10,Math.floor(Math.log10(r))-1);return Math.max(1,Math.round(r/p)*p)}
-function rkFmt(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'٬'))}
+function rkFmt(n){return fa(String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,EN?',':'٬'))}
 function rkNum(v,int){
   var s=String(v==null?'':v).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)}).replace(/[٫,،]/g,'.').replace(/[−–]/g,'-').replace(/[^0-9.\-]/g,'');
   if(s===''||s==='-'||s==='.')return null;
@@ -276,10 +276,10 @@ function rpClean(r){
   });
   return o;
 }
-function P(p){var o=Object.assign({},DEFP,p);o.rp=rpClean(o.rp);if(!o.sndv){o.sndv=1;o.sound=true}o.ttp=ttpClean(o.ttp);if(typeof o.ttCur!=='string')o.ttCur=null;o.kk=kkClean(o.kk);o.ns=nsClean(o.ns);o.rpd=rpdClean(o.rpd);o.rk=rkClean(o.rk);o.tbk=tbClean(o.tbk);o.kc=kcClean(o.kc);return o}
-var DEFP={msum:'08:00',mev:'20:00',hbanner:true,sort:'auto',name:'',handle:'',hue:215,theme:'auto',showOver:true,fx:true,sound:true,sndv:0,photo:'',welcomed:false,goal:5,fgoal:60,notif:false,vip:false,vipCode:false,vipSeen:false,email:'',via:'',banner:'auto',wrev:true,tt:null,ttp:[],ttCur:null,kk:null,rp:null,ns:null,rpd:null,rk:null,kc:null};
+function P(p){var o=Object.assign({},DEFP,p);o.rp=rpClean(o.rp);if(!o.sndv){o.sndv=1;o.sound=true}o.ttp=ttpClean(o.ttp);if(typeof o.ttCur!=='string')o.ttCur=null;o.kk=kkClean(o.kk);o.ns=nsClean(o.ns);o.rpd=rpdClean(o.rpd);o.rk=rkClean(o.rk);o.tbk=tbClean(o.tbk);o.kc=kcClean(o.kc);o.pins=pnClean(o.pins);return o}
+var DEFP={msum:'08:00',mev:'20:00',hbanner:true,sort:'auto',name:'',handle:'',hue:215,theme:'auto',showOver:true,fx:true,sound:true,sndv:0,photo:'',welcomed:false,goal:5,fgoal:60,notif:false,vip:false,vipCode:false,vipSeen:false,email:'',via:'',banner:'auto',wrev:true,tt:null,ttp:[],ttCur:null,kk:null,rp:null,ns:null,rpd:null,rk:null,kc:null,pins:[]};
 var state={tasks:cached?cached.tasks:sample(),profile:P(cached&&cached.profile),hist:(cached&&cached.hist)||null,notifs:cleanNotifs(cached&&cached.notifs),nseen:Number(cached&&cached.nseen)||0};
-var ui={tab:'today',filter:'all',cat:null,day:todayKey(),loading:false,fcats:[],fpri:[],ftags:[],q:''};
+var ui={sel:null,pnOpen:{},pnAll:false,tab:'today',filter:'all',cat:null,day:todayKey(),loading:false,fcats:[],fpri:[],ftags:[],q:''};
 var acctName='',userId=null,storeReadyRes,storeReady=new Promise(function(r){storeReadyRes=r});
 var lastRing=0;
 var find=function(id){return state.tasks.find(function(t){return t.id===id})};
@@ -303,7 +303,6 @@ function setLang(l){
   setTimeout(function(){location.reload()},120);
 }
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-lang]');if(b){e.preventDefault();setLang(b.getAttribute('data-lang'))}});
-if(EN){var kkTab=document.querySelector('.tab[data-tab="kk"]');if(kkTab)kkTab.remove()}   /* Konkooria (Iranian exam prep) is Persian-only */
 
 /* ---------- persistence ---------- */
 var dbDoc=null,dirty=false,saving=false,saveTimer=null,failedOnce=false;
@@ -378,7 +377,7 @@ function sortCat(arr){return arr.slice().sort(function(a,b){return (a.done-b.don
 
 function group(title,tasks,o){
   if(!tasks.length)return '';
-  return '<section><h3 class="gh'+(o&&o.cls?' '+o.cls:'')+'"><span>'+title+'</span><span>'+fa(tasks.length)+'</span></h3><ul class="glass list">'+tasks.map(function(t){return rowHTML(t,o)}).join('')+'</ul></section>';
+  return '<section><h3 class="gh'+(o&&o.cls?' '+o.cls:'')+'"><span>'+title+'</span>'+(o&&o.hx&&!ui.sel?o.hx:'')+'<span>'+fa(tasks.length)+'</span></h3><ul class="glass list">'+tasks.map(function(t){return rowHTML(t,o)}).join('')+'</ul></section>';
 }
 function seg(){
   var items=[['all',(__("همه"))],['open',(__("مانده","Open"))],['done',(__("انجام‌شده"))]];
@@ -386,7 +385,7 @@ function seg(){
 }
 function head(sub,title,opt){
   opt=opt||{};
-  return '<header class="head">'+bellBtn()+'<div class="ht">'+(opt.back?'<button type="button" class="back" data-act="'+(opt.backAct||'back')+'">'+icon('chev')+(opt.backTxt||(__("دسته‌ها")))+'</button>':'')+'<p class="sub">'+sub+'</p><h1>'+title+'</h1></div>'+(opt.right||'')+'</header>';
+  return '<header class="head">'+(opt.back?'<button type="button" class="back" data-act="'+(opt.backAct||'back')+'">'+icon('chev')+(opt.backTxt||(__("دسته‌ها")))+'</button>':'')+bellBtn()+'<div class="ht"><p class="sub">'+sub+'</p><h1>'+title+'</h1></div>'+(opt.right||'')+'</header>';
 }
 function empty(ic,h,p,btn){
   return '<div class="empty"><div class="badge">'+icon(ic)+'</div><h3>'+h+'</h3><p>'+p+'</p>'+(btn?'<button type="button" class="btn" data-act="add">'+icon('plus')+(__("افزودن کار")+"</button>"):'')+'</div>';
@@ -474,10 +473,19 @@ function charBackA(){
   try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
   ui.tab='today';render('enter');window.scrollTo(0,0);
 }
+/* Konkooria sub-pages (rank estimate, textbooks, smart coach): opening pushes a history entry so the phone's Back button returns to Konkooria */
+function subPush(){try{history.pushState({sub:1},'',location.href)}catch(e){}}
+function subBack(){if(history.state&&history.state.sub){history.back();return}ui.tab='kk';render('enter');window.scrollTo(0,0)}
+var accPopSkip=false;
 window.addEventListener('popstate',function(){
+  if(accPopSkip){accPopSkip=false;return}
   if(ied.on){iedDo();return}
   if(imv.on){imvDo();return}
   if(pdfv.on){pvDoClose();return}
+  if(ui.tab==='account'&&ui.accPage){ui.accPage=null;render('enter');window.scrollTo(0,0);return}
+  if(ui.tab==='kcm'&&ui.kcsec){ui.kcsec='';render('enter');window.scrollTo(0,0);return}
+  if(ui.tab==='kcm'){ui.tab='coach';render('enter');window.scrollTo(0,0);return}
+  if(ui.tab==='rk'||ui.tab==='tb'||ui.tab==='coach'){ui.tab='kk';render('enter');window.scrollTo(0,0);return}
   if(charRoute())render('enter');
   else if(ui.tab==='char'){ui.tab='today';render('enter')}
   window.scrollTo(0,0);
@@ -542,13 +550,13 @@ function viewToday(){
   if(left>0)l2.push(fa(left)+(" "+__("کار مانده")));
   if(over.length)l2.push(fa(over.length)+(" "+__("کار عقب‌افتاده")));
   if(!l2.length)l2.push(total?(__("عالی بود")):(__("با دکمه بعلاوه کار اضافه کن")));
-  var body=(state.profile.showOver!==false?group((__("عقب‌افتاده")),sortDay(overAll.filter(pass)),{showDate:1,cls:'bad'}):'')+
+  var body=(state.profile.showOver!==false?group((__("عقب‌افتاده")),sortDay(overAll.filter(pass)),{showDate:1,cls:'bad',hx:"<button type=\"button\" class=\"gx\" data-act=\"selOver\">"+icon('pin')+__("پین گروهی","Pin all")+"</button>"}):'')+
     group((__("امروز")),sortDay(todayAll.filter(pass)),{})+
     group((__("بدون تاریخ")),sortDay(none.filter(pass)),{});
   if(!body)body=empty('today',f==='done'?(__("هنوز کاری انجام نشده")):(__("همه‌چیز مرتب است")),(__("برای امروز کار بازی نداری.")),f!=='done');
   var foot=all.some(function(t){return t.done})?("<div class=\"foot\"><button type=\"button\" class=\"linkbtn\" data-act=\"clearDone\">"+__("پاک کردن انجام‌شده‌ها")+"</button></div>"):'';
-  return head(F.long.format(new Date())+(holiday(td)?' · '+holiday(td):''),(__("امروز")),{right:fbtn()})+filterNote()+homeBanner(left)+adCarousel()+quickBar()+habitStrip()+hero3d(pct,doneN,total,left,over.length,greet,l1,nextTask())+quickPanel()+focusCard()+
-    seg()+body+foot;
+  return head(F.long.format(new Date())+(holiday(td)?' · '+holiday(td):''),(__("امروز")),{right:selBtn()+fbtn()})+filterNote()+homeBanner(left)+adCarousel()+quickBar()+habitStrip()+pnBox()+hero3d(pct,doneN,total,left,over.length,greet,l1,nextTask())+quickPanel()+focusCard()+
+    seg()+body+foot+selBar();
 }
 
 function viewLists(){
@@ -567,7 +575,7 @@ function viewCat(){
   var list=state.tasks.filter(function(t){return (id==='all'||t.c===id)&&(f==='all'||(f==='open'?!t.done:t.done))});
   var body=list.length?'<ul class="glass list" style="margin-top:16px">'+sortCat(list).map(function(t){return rowHTML(t,{showDate:1})}).join('')+'</ul>':empty('lists',(__("اینجا کاری نیست")),(__("یک کار تازه به این دسته اضافه کن.")),f!=='done');
   var n=state.tasks.filter(function(t){return (id==='all'||t.c===id)&&!t.done}).length;
-  return head(n?fa(n)+(" "+__("کار مانده")):(__("همه انجام شده")),name,{back:1,right:id==='all'?'':'<button type="button" class="round glass" data-act="editCat" data-cat="'+id+("\" aria-label=\""+__("ویرایش دسته")+"\">")+icon('edit')+'</button>'})+seg()+body;
+  return head(n?fa(n)+(" "+__("کار مانده")):(__("همه انجام شده")),name,{back:1,right:selBtn()+(id==='all'?'':'<button type="button" class="round glass" data-act="editCat" data-cat="'+id+("\" aria-label=\""+__("ویرایش دسته")+"\">")+icon('edit')+'</button>')})+seg()+body+selBar();
 }
 
 function movePill(){
@@ -580,11 +588,11 @@ function movePill(){
   p.style.transform='translateX('+on.offsetLeft+'px)';
 }
 function render(mode){
-  var h=ui.tab==='char'?viewChar():ui.tab==='today'?viewToday():ui.tab==='week'?viewWeek():ui.tab==='kk'?viewKK():ui.tab==='rk'?viewRK():ui.tab==='tb'?viewTB():ui.tab==='mz'?viewMZ():ui.tab==='stats'?viewStats():ui.tab==='account'?viewAccount():viewLists();
+  var h=ui.tab==='char'?viewChar():ui.tab==='today'?viewToday():ui.tab==='week'?viewWeek():ui.tab==='kk'?viewKK():ui.tab==='rk'?viewRK():ui.tab==='coach'?viewCoach():ui.tab==='kcm'?viewKcm():ui.tab==='tb'?viewTB():ui.tab==='stats'?viewStats():ui.tab==='account'?viewAccount():viewLists();
   var v=$('#view');
   var qv0=document.getElementById('qaIn'),qs0=qv0&&qv0.value?{v:qv0.value,f:document.activeElement===qv0}:null;
   v.className='app'+(mode?' '+mode:'')+(v.classList.contains('cv')?' cv':'');
-  var di=document.querySelector('.dock-in');if(di)di.classList.toggle('nofab',ui.tab==='account'||ui.tab==='rk'||ui.tab==='tb'||ui.tab==='mz'||ui.tab==='char');
+  var di=document.querySelector('.dock-in');if(di)di.classList.toggle('nofab',ui.tab==='account'||ui.tab==='rk'||ui.tab==='tb'||ui.tab==='coach'||ui.tab==='kcm'||ui.tab==='char');
   var fb=$('#fab');if(fb)fb.setAttribute('aria-label',ui.tab==='kk'?(__("ثبت مطالعه")):(__("افزودن کار جدید")));
   var keep=(mode!=='enter'),sy=window.scrollY||0,hh=v.offsetHeight;
   if(keep&&hh)v.style.minHeight=hh+'px';
@@ -592,7 +600,7 @@ function render(mode){
   v.classList.toggle('cv',v.querySelectorAll('.row').length>40);
   if(keep){window.scrollTo(0,sy);requestAnimationFrame(function(){v.style.minHeight=''})}else v.style.minHeight='';
   document.querySelectorAll('.tab').forEach(function(b){
-    var on=b.dataset.tab===(ui.tab==='rk'||ui.tab==='tb'||ui.tab==='mz'?'kk':ui.tab==='char'?'today':ui.tab==='lists'?'week':ui.tab);
+    var on=b.dataset.tab===(ui.tab==='rk'||ui.tab==='tb'||ui.tab==='coach'||ui.tab==='kcm'?'kk':ui.tab==='char'?'today':ui.tab==='lists'?'week':ui.tab);
     b.classList.toggle('on',on);
     if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
@@ -602,6 +610,7 @@ function render(mode){
   if(qs0){var qn=document.getElementById('qaIn');if(qn){qn.value=qs0.v;if(qs0.f)qn.focus({preventScroll:true})}}
   qaPreview();
   if(ui.tab==='tb')tbFill();
+  if(ui.tab==='kcm'&&ui.kcsec)kcxInit();
   if(pkFirst&&ui.tab==='today'&&document.querySelector('.hbpw')){pkFirst=false;clearTimeout(pkWaveT);pkWaveT=setTimeout(pkWaveA,1200)}
 }
 var coverDk=false,coverSeen=null,covMQ=window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):null;
@@ -635,8 +644,8 @@ function removeTasks(ids,msg){
 }
 var actions={
   filter:function(d){ui.filter=d.f;render('swap')},
-  openCat:function(d){ui.cat=d.cat;ui.filter='all';render('enter');window.scrollTo(0,0)},
-  back:function(){ui.cat=null;ui.filter='all';render('enter')},
+  openCat:function(d){ui.sel=null;ui.cat=d.cat;ui.filter='all';render('enter');window.scrollTo(0,0)},
+  back:function(){ui.sel=null;ui.cat=null;ui.filter='all';render('enter')},
   pickDay:function(d){ui.day=d.d;render('swap')},
   weekNext:function(){ui.day=addDays(ui.day,7);render('right')},
   weekPrev:function(){ui.day=addDays(ui.day,-7);render('left')},
@@ -659,6 +668,8 @@ var actions={
     if(k==='sound'&&state.profile.sound)beep();
     if(k==='notif'&&state.profile.notif)reqNotif();
   },
+  accPage:function(d){ui.accPage=d.id;try{history.pushState({accp:1},'',location.href)}catch(e){}render('enter');window.scrollTo(0,0)},
+  accBack:function(){accBack()},
   editProfile:function(){openProfile()},
   cycleLang:function(){setLang(EN?'fa':'en')},
   cycleTheme:function(){var L=themeList(),i=L.findIndex(function(x){return x[0]===state.profile.theme});state.profile.theme=L[(i+1)%L.length][0];applyTheme();mutate()},
@@ -671,6 +682,7 @@ var actions={
 };
 $('#view').addEventListener('click',function(e){
   if(Date.now()-swipedAt<450)return;
+  if(ui.sel){var sr=e.target.closest('.row');if(sr){selToggle(sr.dataset.id);return}}
   var sb=e.target.closest('.sub');
   if(sb){toggleSub(sb.closest('.row').dataset.id,sb.dataset.sid);return}
   var chk=e.target.closest('.chk');
@@ -683,10 +695,10 @@ $('#view').addEventListener('click',function(e){
   if(a&&actions[a.dataset.act])actions[a.dataset.act](a.dataset);
 });
 $('#view').addEventListener('keydown',function(e){
-  if((e.key==='Enter'||e.key===' ')&&e.target.matches('.row .body')){e.preventDefault();toggleCheck(e.target.closest('.row').dataset.id)}
+  if((e.key==='Enter'||e.key===' ')&&e.target.matches('.row .body')){e.preventDefault();if(ui.sel)selToggle(e.target.closest('.row').dataset.id);else toggleCheck(e.target.closest('.row').dataset.id)}
 });
 document.querySelectorAll('.tab').forEach(function(b){
-  b.addEventListener('click',function(){if(ui.tab==='char'&&/^#\/character\//.test(location.hash||'')){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}ui.tab=b.dataset.tab;ui.cat=null;ui.filter='all';render('enter');window.scrollTo(0,0);if(ui.tab==='account')reloadAccount(true)});
+  b.addEventListener('click',function(){ui.sel=null;if(ui.accPage){ui.accPage=null;if(history.state&&history.state.accp){accPopSkip=true;try{history.back()}catch(e){accPopSkip=false}}}if(ui.tab==='char'&&/^#\/character\//.test(location.hash||'')){try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}ui.tab=b.dataset.tab;ui.cat=null;ui.filter='all';render('enter');window.scrollTo(0,0);if(ui.tab==='account')reloadAccount(true)});
 });
 $('#fab').addEventListener('click',function(){if(ui.tab==='kk')openKK(null);else openSheet(null)});
 
@@ -962,7 +974,44 @@ function accOpen(id,ic,title){
   return '<section class="acc glass'+(on?' open':'')+'" data-acc="'+id+'"><button type="button" class="mrow acc-h" data-act="acc" data-id="'+id+'" aria-expanded="'+on+'"><span class="mi">'+icon(ic)+'</span><span class="ml">'+title+'</span>'+icon('chev','chv')+'</button><div class="acc-b"><div class="acc-in">';
 }
 function accClose(){return '</div></div></section>'}
+
+function accLink(id,ic,title){
+  return '<section class="acc glass"><button type="button" class="mrow acc-h" data-act="accPage" data-id="'+id+'">'+'<span class="mi">'+icon(ic)+'</span><span class="ml">'+title+'</span>'+icon('chev','chv')+'</button></section>';
+}
+var ACC_T={edit:['user','ویرایش مشخصات'],look:['palette','مشخصات ظاهری'],center:['target','مرکز من'],prefs:['tools','تنظیمات']};
+function viewAccPage(id){
+  var p=state.profile,L=ui.loading,doneN=state.tasks.filter(function(t){return t.done}).length;
+  var row=function(ic,label,val,act){return '<button type="button" class="mrow" data-act="'+act+'"><span class="mi">'+icon(ic)+'</span><span class="ml">'+label+'</span>'+(val?'<span class="mv">'+val+'</span>':'')+icon('chev','chv')+'</button>'};
+  var rows='';
+  if(id==='edit')rows=
+      row('edit',(__("ویرایش مشخصات")),'','editProfile')+
+      row(p.via==='google'?'g':(p.via==='email'?'mail':'edit'),p.via==='google'?(__("ورود با گوگل")):(p.via==='email'?(__("ورود با ایمیل")):(__("ورود با نام"))),L?'':(p.email?'<bdi dir="ltr">'+esc(p.email)+'</bdi>':''),'editProfile');
+  else if(id==='look')rows=
+      row('globe','زبان · Language',EN?'English':'فارسی','cycleLang')+
+      row('sun',(__("ظاهر برنامه")),themeName(),'cycleTheme')+
+      row('palette',(__("ظاهر اعلان‌ها")),L?'':nsThemeName(),'openNsStyle');
+  else if(id==='center')rows=
+      row('bell',(__("خلاصه‌ی صبح")),L?'':(p.msum?fa(p.msum):(__("خاموش"))),'cycleMsum')+
+      row('bell',(__("یادآور عصر")),L?'':(p.mev?fa(p.mev):(__("خاموش"))),'cycleMev')+
+      row('spark',(__("هدف روزانه کارها")),L?'':fa(p.goal||5)+(" "+__("کار")),'cycleGoal')+
+      row('timer',(__("هدف تمرکز روزانه")),L?'':fa(p.fgoal||60)+(" "+__("دقیقه")),'cycleFGoal')+
+      row('book',(__("راهنمای شروع")),'','showWelcome')+
+      row('check',(__("کارهای انجام‌شده")),L?'':fa(doneN),'goDone');
+  else rows=
+      row('lock',(__("قفل برنامه")),lkGet()?(__("روشن")):(__("خاموش")),'openLock')+
+      row('key',(__("کد VIP")),state.profile.vipCode?(__("فعال")):'','openVipCode')+
+      row('cloud',(__("پشتیبان‌گیری و بازیابی")),'','openBackup')+
+      row('trash',(__("پاک کردن انجام‌شده‌ها")),'','clearDone')+
+      row('info',(__("اطلاعات برنامه")),L?'':(__("نسخه")+" ")+fa(APP.ver),'openAppInfo');
+  return head(esc(displayName()),__(ACC_T[id]?ACC_T[id][1]:'تنظیمات'),{back:1,backAct:'accBack',backTxt:(__("حساب کاربری"))})+
+    '<section class="acc glass accp">'+rows+'</section>';
+}
+function accBack(){
+  if(history.state&&history.state.accp){history.back();return}
+  ui.accPage=null;render('enter');window.scrollTo(0,0);
+}
 function viewAccount(){
+  if(ui.accPage&&ACC_T[ui.accPage])return viewAccPage(ui.accPage);
   var p=state.profile,L=ui.loading,all=state.tasks;
   var total=all.length,doneN=all.filter(function(t){return t.done}).length,left=total-doneN;
   var sk='<i class="sk"></i>',name=displayName();
@@ -984,30 +1033,10 @@ function viewAccount(){
         '<div class="banner"><span class="bi">'+icon('cloud')+'</span><div class="bt"><b>'+bTitle+'</b><span>'+bSub+'</span></div><button type="button" class="bbtn" data-act="reload"'+(L?' disabled':'')+(">"+__("بارگذاری")+"</button></div>")+
       '</div>'+
     '</section>'+
-    accOpen('edit','user',(__("ویرایش مشخصات")))+
-      row('edit',(__("ویرایش مشخصات")),'','editProfile')+
-      row(p.via==='google'?'g':(p.via==='email'?'mail':'edit'),p.via==='google'?(__("ورود با گوگل")):(p.via==='email'?(__("ورود با ایمیل")):(__("ورود با نام"))),L?'':(p.email?'<bdi dir="ltr">'+esc(p.email)+'</bdi>':''),'editProfile')+
-    accClose()+
-    accOpen('look','palette',(__("مشخصات ظاهری")))+
-      row('globe','زبان · Language',EN?'English':'فارسی','cycleLang')+
-      row('sun',(__("ظاهر برنامه")),themeName(),'cycleTheme')+
-      row('palette',(__("ظاهر اعلان‌ها")),L?'':nsThemeName(),'openNsStyle')+
-    accClose()+
-    accOpen('center','target',(__("مرکز من")))+
-      row('bell',(__("خلاصه‌ی صبح")),L?'':(p.msum?fa(p.msum):(__("خاموش"))),'cycleMsum')+
-      row('bell',(__("یادآور عصر")),L?'':(p.mev?fa(p.mev):(__("خاموش"))),'cycleMev')+
-      row('spark',(__("هدف روزانه کارها")),L?'':fa(p.goal||5)+(" "+__("کار")),'cycleGoal')+
-      row('timer',(__("هدف تمرکز روزانه")),L?'':fa(p.fgoal||60)+(" "+__("دقیقه")),'cycleFGoal')+
-      row('book',(__("راهنمای شروع")),'','showWelcome')+
-      row('check',(__("کارهای انجام‌شده")),L?'':fa(doneN),'goDone')+
-    accClose()+
-    accOpen('prefs','tools',(__("تنظیمات")))+
-      row('lock',(__("قفل برنامه")),lkGet()?(__("روشن")):(__("خاموش")),'openLock')+
-      row('key',(__("کد VIP")),state.profile.vipCode?(__("فعال")):'','openVipCode')+
-      row('cloud',(__("پشتیبان‌گیری و بازیابی")),'','openBackup')+
-      row('trash',(__("پاک کردن انجام‌شده‌ها")),'','clearDone')+
-      row('info',(__("اطلاعات برنامه")),L?'':(__("نسخه")+" ")+fa(APP.ver),'openAppInfo')+
-    accClose()+
+    accLink('edit','user',(__("ویرایش مشخصات")))+
+    accLink('look','palette',(__("مشخصات ظاهری")))+
+    accLink('center','target',(__("مرکز من")))+
+    accLink('prefs','tools',(__("تنظیمات")))+
     toggles();
 }
 
@@ -1862,9 +1891,9 @@ function rowHTML(t,o){
   if(st.length)meta.push('<span class="mt">'+icon('check')+fa(st.filter(function(s){return s.d}).length)+'/'+fa(st.length)+'</span>');
   var subs=st.length?'<div class="subs">'+st.map(function(s){return '<button type="button" class="sub'+(s.d?' on':'')+'" data-sid="'+esc(s.id)+'" aria-pressed="'+!!s.d+'"><i>'+icon('check')+'</i><span>'+esc(s.t)+'</span></button>'}).join('')+'</div>':'';
   var lab=(t.done?(__("انجام‌شده:")+" "):(__("انجام شد:")+" "))+esc(t.t);
-  return '<li class="row'+(t.done?' done':'')+(t.col?' hascol':'')+'" data-id="'+t.id+'" style="--cc:'+cvar(t.col||c.c)+'">'+
+  return '<li class="row'+(t.done?' done':'')+(t.col?' hascol':'')+(ui.sel?' selm'+(ui.sel.ids.indexOf(t.id)>-1?' picked':''):'')+'" data-id="'+t.id+'" style="--cc:'+cvar(t.col||c.c)+'">'+
     '<span class="swl" aria-hidden="true">'+icon('check')+(t.done?(__("ناتمام")):(__("انجام شد")))+("</span><span class=\"swr\" aria-hidden=\"true\">"+__("حذف"))+icon('trash')+'</span>'+
-    '<div class="rc"><div class="rmain">'+
+    '<div class="rc"><div class="rmain">'+(ui.sel?'<span class="selc" aria-hidden="true">'+icon('check')+'</span>':'')+
     '<button type="button" class="chk" aria-pressed="'+t.done+'" aria-label="'+lab+'">'+icon('check')+'</button>'+
     '<div class="body" role="button" tabindex="0" aria-label="'+lab+'"><div class="ttl">'+esc(t.t)+'</div><div class="meta">'+meta.join('')+'</div></div>'+
     (t.p>0?icon('flag','flag p'+t.p):'')+("<button type=\"button\" class=\"rowedit\" aria-label=\""+__("ویرایش:")+" ")+esc(t.t)+'">'+icon('edit')+'</button>'+(state.profile.sort==='manual'?("<button type=\"button\" class=\"grip\" aria-label=\""+__("جابه‌جایی:")+" ")+esc(t.t)+'">'+icon('grip')+'</button>':'')+'</div>'+subs+'</div></li>';
@@ -1929,6 +1958,7 @@ function toggleSub(id,sid){
 var vw=$('#view');
 vw.addEventListener('pointerdown',function(e){
   if(e.pointerType==='mouse'&&e.button!==0)return;
+  if(ui.sel)return;
   var rc=e.target.closest('.rc');
   if(!rc||e.target.closest('.chk,.rowedit,.sub'))return;
   sw={rc:rc,row:rc.parentNode,x:e.clientX,y:e.clientY,dx:0,lock:0,id:e.pointerId,w:rc.offsetWidth};
@@ -2055,7 +2085,7 @@ function viewWeek(){
     top=("<section class=\"weekbar glass\"><div class=\"weeknav\"><button type=\"button\" data-act=\"monthPrev\" aria-label=\""+__("ماه قبل")+"\">")+icon('chev')+'</button><b>'+F.month.format(parse(ui.day))+("</b><button type=\"button\" data-act=\"monthNext\" aria-label=\""+__("ماه بعد")+"\">")+nextI+'</button></div><div class="mgrid">'+mc+'</div>'+(fm!==mFirst(td)?'<div class="jump"><button type="button" class="linkbtn" data-act="pickDay" data-d="'+td+("\">"+__("برو به امروز")+"</button></div>"):'')+'</section>';
   }
   var oc=holiday(ui.day)?'<p class="occ">'+icon('flag')+esc(holiday(ui.day))+'</p>':(!EN&&parse(ui.day).getDay()===5?'<p class="occ">'+icon('flag')+(__("جمعه")+"</p>"):'');
-  return head(F.month.format(parse(ui.day)),(__("برنامه")),{right:fbtn()})+filterNote()+segG([['day',(__("روز","Day"))],['week',(__("هفته"))],['month',(__("ماه"))]],'wv',ui.wv)+top+oc+lh+(EN?'':ttCard())+lsCard();
+  return head(F.month.format(parse(ui.day)),(__("برنامه")),{right:fbtn()})+filterNote()+segG([['day',(__("روز","Day"))],['week',(__("هفته"))],['month',(__("ماه"))]],'wv',ui.wv)+top+oc+lh+ttCard()+lsCard();
 }
 actions.wv=function(d){ui.wv=d.v;render('swap');if(d.v==='day'){var nw=document.querySelector('.tlnow');if(nw)try{nw.scrollIntoView({block:'center'})}catch(e){}}};
 actions.monthNext=function(){var fm=mFirst(ui.day);ui.day=monthSel(addDays(fm,mLen(fm)));render('right')};
@@ -2545,6 +2575,7 @@ function bkRestore(raw,silent){
       var add=tasks.filter(function(t){return !have[t.id]});
       state.tasks=state.tasks.concat(add);
       if(j.profile&&Array.isArray(j.profile.habits)){var hid={};hbs().forEach(function(x){hid[x.id]=1});j.profile.habits.forEach(function(x){if(x&&x.id&&x.n&&!hid[x.id])hbs().push({id:String(x.id).replace(/[^\w-]/g,''),n:String(x.n).slice(0,24),i:ICONS.indexOf(x.i)>-1?x.i:ICONS[0],c:String(x.c||SWATCH[3]),ts:x.ts||Date.now(),d:x.d&&typeof x.d==='object'?x.d:{}})})}
+      if(j.profile&&Array.isArray(j.profile.pins)){var pid={};pnAllG().forEach(function(x){pid[x.id]=1});pnClean(j.profile.pins).forEach(function(x){if(!pid[x.id]){pnAllG().push(x);pid[x.id]=1}})}
       if(j.profile&&Array.isArray(j.profile.ttp)){var tid={};ttPlans().forEach(function(x){tid[x.id]=1});ttpClean(j.profile.ttp).forEach(function(x){if(!tid[x.id]){ttPlans().push(x);tid[x.id]=1}})}
       if(nc){var ids={};CATS.forEach(function(c){ids[c.id]=1});var extra=j.cats.filter(function(c){return c&&c.id&&!ids[c.id]});if(extra.length)setCats(CATS.slice().concat(extra))}
       done(fa(add.length)+(" "+__("کار تازه اضافه شد")))}},
@@ -3047,6 +3078,171 @@ function vcTime(x){
 }
 actions.qaMic=function(){qaMic()};
 if(/[?&]test=1/.test(location.search))window.__nl=nlParse;
+
+/* ---------- pinned task groups (پین گروهی) ----------
+   Pick several tasks at once, give them a group name (e.g. "انجام ندادم") and pin the group to the home screen,
+   where it shows up in a glass box. Groups live in state.profile.pins = [{id,n,ids:[taskId],ts,pin}].
+   Tasks that no longer exist are skipped when drawing. pin:false = saved only (shown under "ذخیره‌شده‌ها"). */
+function pnClean(a){
+  if(!Array.isArray(a))return [];
+  var seen={};
+  return a.filter(function(g){return g&&typeof g==='object'&&g.id&&typeof g.n==='string'&&g.n.replace(/[<>&"']/g,'').trim()&&Array.isArray(g.ids)}).slice(0,40).map(function(g){
+    var id=String(g.id).replace(/[^\w-]/g,'').slice(0,30)||uid();if(seen[id])id=uid();seen[id]=1;
+    var ids=[],hv={};
+    g.ids.forEach(function(x){x=String(x).replace(/[^\w-]/g,'');if(x&&!hv[x]&&ids.length<500){hv[x]=1;ids.push(x)}});
+    return {id:id,n:g.n.replace(/[<>&"']/g,'').trim().slice(0,30),ids:ids,ts:Number(g.ts)||Date.now(),pin:g.pin!==false};
+  });
+}
+function pnAllG(){return state.profile.pins||(state.profile.pins=[])}
+function pnGet(id){return pnAllG().find(function(g){return g.id===id})}
+function pnItems(){return pnAllG().map(function(g){return {g:g,tasks:g.ids.map(find).filter(Boolean)}}).filter(function(x){return x.tasks.length})}
+function pnPrune(){
+  var a=pnAllG();
+  a.forEach(function(g){g.ids=g.ids.filter(function(id){return find(id)})});
+  state.profile.pins=a.filter(function(g){return g.ids.length});
+}
+
+/* ----- bulk select mode ----- */
+function selBtn(){
+  var on=!!ui.sel;
+  return '<button type="button" class="round glass'+(on?' on':'')+'" data-act="selStart" aria-pressed="'+on+'" aria-label="'+__("انتخاب چند کار","Select tasks")+'">'+icon('select')+'</button>';
+}
+function selCount(n){return n?(EN?n+' selected':fa(n)+' انتخاب'):__("کارها را انتخاب کن","Pick tasks")}
+function selBar(){
+  if(!ui.sel)return '';
+  var n=ui.sel.ids.length;
+  return '<div class="selbar" id="selBar" role="toolbar"><span class="selct">'+selCount(n)+'</span>'+
+    '<button type="button" class="selx" data-act="selAll">'+__("همه","All")+'</button>'+
+    '<button type="button" class="selgo" data-act="selPin"'+(n?'':' disabled')+'>'+icon('pin')+__("پین","Pin")+'</button>'+
+    '<button type="button" class="selx" data-act="selCancel" aria-label="'+__("انصراف","Cancel")+'">'+icon('close')+'</button></div>';
+}
+function selPaint(){
+  if(!ui.sel)return;
+  [].forEach.call(document.querySelectorAll('#view .row'),function(r){r.classList.toggle('picked',ui.sel.ids.indexOf(r.dataset.id)>-1)});
+  var b=document.getElementById('selBar');
+  if(b){b.querySelector('.selct').textContent=selCount(ui.sel.ids.length);b.querySelector('.selgo').disabled=!ui.sel.ids.length}
+}
+function selToggle(id){
+  if(!ui.sel)return;
+  var i=ui.sel.ids.indexOf(id);
+  if(i>-1)ui.sel.ids.splice(i,1);else ui.sel.ids.push(id);
+  selPaint();
+}
+actions.selStart=function(){ui.sel=ui.sel?null:{ids:[]};render()};
+actions.selCancel=function(){ui.sel=null;render()};
+/* shortcut on the "عقب‌افتاده" header: select every overdue task, then pin them in one go */
+actions.selOver=function(){
+  var td=todayKey();
+  ui.sel={ids:state.tasks.filter(function(t){return t.d&&t.d<td&&!t.done}).map(function(t){return t.id})};
+  render();
+};
+actions.selAll=function(){
+  if(!ui.sel)return;
+  var ids=[].map.call(document.querySelectorAll('#view .row'),function(r){return r.dataset.id});
+  var all=ids.length&&ids.every(function(id){return ui.sel.ids.indexOf(id)>-1});
+  ui.sel.ids=all?ui.sel.ids.filter(function(id){return ids.indexOf(id)<0}):ui.sel.ids.concat(ids.filter(function(id){return ui.sel.ids.indexOf(id)<0}));
+  selPaint();
+};
+actions.selPin=function(){if(ui.sel&&ui.sel.ids.length)pnOpenSheet(ui.sel.ids.slice())};
+
+/* ----- the glass box on the home screen ----- */
+function pnGroupHTML(x){
+  var g=x.g,ts=x.tasks,left=ts.filter(function(t){return !t.done}),open=!!ui.pnOpen[g.id],pct=Math.round((ts.length-left.length)/ts.length*100),sv=g.pin===false;
+  var sub=left.length?(EN?left.length+' left of '+ts.length:fa(left.length)+' مانده از '+fa(ts.length)):__("همه انجام شد","All done");
+  var prev=!open&&left.length?'<span class="pgp">'+left.slice(0,2).map(function(t){return esc(t.t)}).join(CMA)+(left.length>2?'…':'')+'</span>':'';
+  var h='<div class="png'+(open?' open':'')+(sv?' sv':'')+'"><button type="button" class="pngh" data-act="pnTgl" data-id="'+g.id+'" aria-expanded="'+open+'">'+
+    '<span class="pngi">'+icon(sv?'star':'pin')+'</span>'+
+    '<span class="pgn"><b>'+esc(g.n)+'</b><small>'+sub+'</small>'+prev+'<span class="pgbar"><span style="width:'+pct+'%"></span></span></span>'+
+    '<span class="pgc" aria-hidden="true"></span></button>';
+  if(open){
+    h+='<div class="pngb"><ul class="list pnlist">'+sortCat(ts).map(function(t){return rowHTML(t,{showDate:1})}).join('')+'</ul><div class="pnacts">'+
+      (left.length?'<button type="button" data-act="pnToday" data-id="'+g.id+'">'+icon('today')+__("همه را امروز بگذار","Move all to today")+'</button>':'')+
+      '<button type="button" data-act="pnPin" data-id="'+g.id+'">'+icon('pin')+(sv?__("پین کن","Pin"):__("برداشتن پین","Unpin"))+'</button>'+
+      '<button type="button" class="bad" data-act="pnDel" data-id="'+g.id+'">'+icon('trash')+__("حذف گروه","Delete group")+'</button></div></div>';
+  }
+  return h+'</div>';
+}
+function pnBox(){
+  if(ui.sel)return '';
+  var all=pnItems();if(!all.length)return '';
+  var pinned=all.filter(function(x){return x.g.pin!==false}),saved=all.filter(function(x){return x.g.pin===false});
+  var show=pinned.concat(ui.pnAll?saved:[]);
+  return '<section class="pnbox" aria-label="'+__("گروه‌های پین‌شده","Pinned groups")+'"><div class="pnh"><span class="pnt">'+icon('pin')+__("پین‌شده‌ها","Pinned")+'</span>'+
+    (saved.length?'<button type="button" class="pnmore" data-act="pnAll" aria-pressed="'+!!ui.pnAll+'">'+__("ذخیره‌شده‌ها","Saved")+' ('+fa(saved.length)+')</button>':'')+'</div>'+
+    (show.length?show.map(pnGroupHTML).join(''):'<p class="pnhint">'+__("گروهی پین نشده است.","No group is pinned.")+'</p>')+'</section>';
+}
+actions.pnTgl=function(d){ui.pnOpen[d.id]=!ui.pnOpen[d.id];render()};
+actions.pnAll=function(){ui.pnAll=!ui.pnAll;render()};
+actions.pnPin=function(d){var g=pnGet(d.id);if(!g)return;g.pin=g.pin===false;mutate()};
+actions.pnToday=function(d){
+  var g=pnGet(d.id);if(!g)return;
+  var td=todayKey(),n=0;
+  g.ids.forEach(function(id){var t=find(id);if(t&&!t.done&&t.d!==td){t.d=td;delete t.rf;delete t.rz;n++}});
+  mutate();
+  toast(n?(EN?n+' tasks moved to today':fa(n)+' کار به امروز منتقل شد'):__("همه‌ی کارها از قبل برای امروز یا انجام‌شده‌اند","Nothing to move"),null,null,'ok');
+};
+actions.pnDel=function(d){
+  var g=pnGet(d.id);if(!g)return;
+  askConfirm({title:EN?'Delete group “'+g.n+'”':'حذف گروه «'+g.n+'»',msg:__("فقط گروه برداشته می‌شود؛ خود کارها سر جایشان می‌مانند.","Only the group is removed; the tasks stay where they are."),btns:[{t:__("حذف گروه","Delete group"),cls:'bad',fn:function(){state.profile.pins=pnAllG().filter(function(x){return x.id!==g.id});mutate()}}]});
+};
+
+/* ----- sheet: name the group and pin / save it ----- */
+var pn={wrap:$('#pnSheet'),form:$('#pnForm'),name:$('#pnName')},pnD=null,pnCloseT=null;
+function pnSugg(){return [__("انجام ندادم","Not done"),__("بعداً","Later"),__("مهم","Important"),__("فردا","Tomorrow")]}
+function pnDraw(){
+  var n=pnD.ids.length;
+  $('#pnSub').textContent=EN?n+(n===1?' task':' tasks')+' will go into one group':fa(n)+' کار در یک گروه می‌رود';
+  var cur=pn.name.value.trim();
+  $('#pnSug').innerHTML=pnSugg().map(function(x){return '<button type="button" class="chip" data-sg="'+esc(x)+'" aria-pressed="'+(!pnD.gid&&cur===x)+'">'+esc(x)+'</button>'}).join('');
+  var ex=pnAllG();
+  $('#pnExSec').hidden=!ex.length;
+  $('#pnEx').innerHTML=ex.map(function(g){return '<button type="button" class="chip" data-g="'+g.id+'" aria-pressed="'+(pnD.gid===g.id)+'">'+esc(g.n)+'</button>'}).join('');
+  $('#pnPinRow').setAttribute('aria-checked',String(pnD.pin));
+}
+function pnOpenSheet(ids){
+  pnD={ids:ids,gid:null,pin:true};
+  pn.name.value='';pnDraw();
+  clearTimeout(pnCloseT);
+  pn.wrap.hidden=false;
+  document.documentElement.style.overflow='hidden';
+  requestAnimationFrame(function(){requestAnimationFrame(function(){pn.wrap.classList.add('open');setTimeout(function(){pn.name.focus({preventScroll:true})},320)})});
+}
+function pnCloseSheet(){
+  pn.wrap.classList.remove('open');
+  document.documentElement.style.overflow='';
+  clearTimeout(pnCloseT);
+  pnCloseT=setTimeout(function(){pn.wrap.hidden=true},330);
+}
+$('#pnSug').addEventListener('click',function(e){var b=e.target.closest('[data-sg]');if(!b)return;pnD.gid=null;pn.name.value=b.dataset.sg;pnDraw()});
+$('#pnEx').addEventListener('click',function(e){
+  var b=e.target.closest('[data-g]');if(!b)return;
+  if(pnD.gid===b.dataset.g)pnD.gid=null;else{pnD.gid=b.dataset.g;pn.name.value=''}
+  pnDraw();
+});
+pn.name.addEventListener('input',function(){pnD.gid=null;pnDraw()});
+$('#pnPinRow').addEventListener('click',function(){pnD.pin=!pnD.pin;pnDraw()});
+pn.form.addEventListener('submit',function(e){
+  e.preventDefault();
+  var name=pn.name.value.replace(/[<>&"']/g,'').trim().slice(0,30),g=pnD.gid?pnGet(pnD.gid):null;
+  if(!g&&name)g=pnAllG().find(function(x){return x.n.toLowerCase()===name.toLowerCase()})||null;
+  if(!g&&!name){pn.name.classList.remove('shake');void pn.name.offsetWidth;pn.name.classList.add('shake');pn.name.focus();return}
+  if(g){
+    pnD.ids.forEach(function(id){if(g.ids.indexOf(id)<0)g.ids.push(id)});
+    if(pnD.pin)g.pin=true;
+  }else{
+    g={id:uid(),n:name,ids:pnD.ids.slice(),ts:Date.now(),pin:pnD.pin};
+    pnAllG().unshift(g);
+  }
+  pnPrune();
+  ui.sel=null;ui.pnOpen[g.id]=true;if(g.pin===false)ui.pnAll=true;
+  pnCloseSheet();
+  ui.tab='today';ui.cat=null;ui.filter='all';
+  mutate();window.scrollTo(0,0);
+  toast(g.pin===false?(EN?'Saved “'+g.n+'”':'«'+g.n+'» ذخیره شد'):(EN?'Pinned “'+g.n+'”':'«'+g.n+'» پین شد'),null,null,'ok');
+});
+$('#pnCancel').addEventListener('click',pnCloseSheet);
+$('#pnDim').addEventListener('click',pnCloseSheet);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!pn.wrap.hidden)pnCloseSheet()});
 
 /* ---------- habits ---------- */
 var HSAMPLES=[[(__("ورزش")),'dumbbell','#f0266a'],[(__("مطالعه")),'book','#a259f2'],[(__("نوشیدن آب")),'leaf','#00a9c9'],[(__("خواب منظم")),'moon','#5c6bc0']];
@@ -3636,7 +3832,7 @@ function ttDef(){
   return {title:'برنامه کنکوریا',rows:TT_TIMES.map(function(l){return {id:uid(),l:l}}),cells:{}};
 }
 /* t.rows are the 7 "parts" (columns); each keeps the default time shown under its header */
-function ttDefTime(i){if(TT_TIMES[i])return TT_TIMES[i];var a=(8+2*i)%24;return fa(a)+' تا '+fa(a+2)}
+function ttDefTime(i){if(TT_TIMES[i])return TT_TIMES[i];var a=(8+2*i)%24;return fa(a)+(EN?' to ':' تا ')+fa(a+2)}
 /* more / fewer parts: removed parts are kept aside (with their cells) and come back when the number goes up again */
 function ttSetParts(n){
   var t=ttGet();n=Math.max(TT_MIN,Math.min(TT_MAX,Math.round(Number(n))||TT_PARTS));
@@ -3647,7 +3843,7 @@ function ttSetParts(n){
 function ttPartsSheet(){
   var t=ttGet(),sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>تعداد پارت‌ها</h2><button type="button" data-e="close">بستن</button></div>'+
     '<div class="tt-stp"><button type="button" data-e="plus" aria-label="یک پارت بیشتر">+</button><b id="ttPn" aria-live="polite"></b><button type="button" data-e="minus" aria-label="یک پارت کمتر">−</button></div>'+
-    '<p class="hint tt-hint">از '+fa(TT_MIN)+' تا '+fa(TT_MAX)+' پارت. کم‌کردن پارت‌ها نوشته‌هایشان را پاک نمی‌کند؛ اگر دوباره اضافه‌شان کنی برمی‌گردند.</p>'+
+    '<p class="hint tt-hint">'+(EN?'From '+fa(TT_MIN)+' to '+fa(TT_MAX)+' parts. Removing parts doesn\'t erase what you wrote in them; if you add them back, the text returns.':'از '+fa(TT_MIN)+' تا '+fa(TT_MAX)+' پارت. کم‌کردن پارت‌ها نوشته‌هایشان را پاک نمی‌کند؛ اگر دوباره اضافه‌شان کنی برمی‌گردند.')+'</p>'+
     '<div class="tt-eb"><button type="button" class="tt-btn pri full" data-e="close">تمام</button></div>','تعداد پارت‌ها');
   var w=sw.w;
   function paint(){var n=ttGet().rows.length;w.querySelector('#ttPn').textContent=fa(n);w.querySelector('[data-e="plus"]').disabled=n>=TT_MAX;w.querySelector('[data-e="minus"]').disabled=n<=TT_MIN}
@@ -3808,7 +4004,7 @@ function ttApplyPlan(){
   if(!use.length){toast(items.length?'همه‌ی روزهای این هفته گذشته‌اند؛ تاریخ شروع برنامه را عوض کن':'اول چند خانه‌ی جدول را پر کن',null,null,'warn');return}
   var days={};use.forEach(function(x){days[x.di]=(days[x.di]||0)+1});
   var ds=ttDates(t,true);
-  var rows=Object.keys(days).map(function(d){return '<li><span>'+TT_DAYS[d]+' · '+esc(ds[d])+'</span><b>'+fa(days[d])+' کار</b></li>'}).join('');
+  var rows=Object.keys(days).map(function(d){return '<li><span>'+TT_DAYS[d]+' · '+esc(ds[d])+'</span><b>'+fa(days[d])+(EN?' tasks':' کار')+'</b></li>'}).join('');
   var have=state.tasks.filter(function(x){return x.ttk&&use.some(function(u){return u.k===x.ttk})}).length;
   var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>اعمال کردن برنامه</h2><button type="button" data-e="close">بستن</button></div>'+
     '<p class="hint">برای هر خانه‌ی پرشده‌ی جدول یک کار ساخته می‌شود؛ اسم کار همان درس یا مبحث نوشته‌شده در خانه است و فقط در تاریخ همان روز می‌آید. کارها هم در «برنامه» دیده می‌شوند و هم در دسته‌ی «کنکوریا».</p>'+
@@ -3969,7 +4165,7 @@ function ttDateSheet(d){
   function fresh(){
     var raw=ttDates(t,true);
     dp.value=ttIso(ttWs(t));dx.value=t.dtx[d]||'';dx.placeholder=raw[d];
-    wr.textContent='از '+raw[0]+' تا '+raw[6];
+    wr.textContent=(EN?'':'از ')+raw[0]+(EN?' – ':' تا ')+raw[6];
     ttRedraw();
   }
   function setWeek(s){
@@ -4997,9 +5193,9 @@ function kkNum(v){
   var s=String(v).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)});
   return parseInt(s.replace(/[^\d]/g,''),10)||0;
 }
-function kkFmt(m){m=Math.max(0,Math.round(m));var h=Math.floor(m/60),r=m%60,a=[];if(h)a.push(fa(h)+' ساعت');if(r||!h)a.push(fa(r)+' دقیقه');return a.join(' و ')}
-function kkShort(m){m=Math.max(0,Math.round(m));var h=Math.floor(m/60),r=m%60;return h?(r?fa(h)+'س '+fa(r)+'د':fa(h)+'س'):fa(r)+'د'}
-function kkHrs(m){return fa((m/60).toFixed(1)).replace('.','٫')}
+function kkFmt(m){m=Math.max(0,Math.round(m));var h=Math.floor(m/60),r=m%60,a=[];if(h)a.push(fa(h)+(EN?' h':' ساعت'));if(r||!h)a.push(fa(r)+(EN?' min':' دقیقه'));return a.join(EN?' ':' و ')}
+function kkShort(m){m=Math.max(0,Math.round(m));var h=Math.floor(m/60),r=m%60,H=EN?'h':'س',M=EN?'m':'د';return h?(r?fa(h)+H+' '+fa(r)+M:fa(h)+H):fa(r)+M}
+function kkHrs(m){return fa((m/60).toFixed(1)).replace('.',EN?'.':'٫')}
 function kkCol(s){
   if(!s)return '#8e8e93';
   var i=KK_SUBS.indexOf(s);if(i>-1)return SWATCH[i%SWATCH.length];
@@ -5056,12 +5252,12 @@ function kkDayHTML(k,td){
   var sum='<section class="kk-sum glass"><div class="rings">'+ringsSVG([[pct,'#ff9f0a']])+'<div class="kk-rc"><b>'+fa(Math.round(pct*100))+'٪</b><small>از هدف</small></div></div>'+
     '<div class="kk-st"><small>'+(k===td?'امروز':'در این روز')+' خوانده‌ای</small><b>'+kkFmt(c.t)+'</b>'+
     '<button type="button" class="kk-goal" data-act="kkGoal" aria-label="تغییر هدف روزانه">هدف: '+kkFmt(goal)+icon('edit')+'</button>'+
-    '<p>'+(c.t>=goal?'به هدف رسیدی 🎉':'تا هدف '+kkFmt(rem)+' مانده')+'</p></div></section>';
+    '<p>'+(c.t>=goal?'به هدف رسیدی 🎉':(EN?kkFmt(rem)+' left to reach your goal':'تا هدف '+kkFmt(rem)+' مانده'))+'</p></div></section>';
   var q='<div class="kk-q" role="group" aria-label="ثبت سریع">'+[15,30,45,60].map(function(m){return '<button type="button" class="chip" data-act="kkQuick" data-m="'+m+'">+ '+kkShort(m)+'</button>'}).join('')+'</div>';
   var sorted=l.slice().sort(function(a,b){return (a.a||'99:99').localeCompare(b.a||'99:99')||((a.ts||0)-(b.ts||0))});
   var ls=sorted.length?
     '<h3 class="gh"><span>جلسه‌های ثبت‌شده</span><span>'+fa(sorted.length)+'</span></h3><div class="glass kk-ls">'+sorted.map(function(s){
-      var meta=(s.a&&s.b?'از '+fa(s.a)+' تا '+fa(s.b):'')+(s.a&&s.b&&s.n?' · ':'')+esc(s.n||'');
+      var meta=(s.a&&s.b?(EN?'':'از ')+fa(s.a)+(EN?' – ':' تا ')+fa(s.b):'')+(s.a&&s.b&&s.n?' · ':'')+esc(s.n||'');
       return '<button type="button" class="kk-s" data-act="kkEdit" data-id="'+esc(s.id)+'" style="--cc:'+kkCol(s.s)+'"><i></i><div><b>'+esc(s.s||'مطالعه')+'</b>'+(meta?'<small>'+meta+'</small>':'')+'</div><em>'+kkFmt(s.m)+'</em></button>';
     }).join('')+'</div>':
     '<div class="empty"><div class="badge">'+icon('cap')+'</div><h3>هنوز مطالعه‌ای ثبت نشده</h3><p>با میان‌بُرهای بالا یا دکمه‌ی + مدت درس خواندن را ثبت کن.</p></div>';
@@ -5069,11 +5265,11 @@ function kkDayHTML(k,td){
   var subs=c.n?'<h3 class="gh"><span>سهم درس‌ها</span></h3>'+kkSubBars(sm):'';
   var tips=[];
   if(c.n){
-    if(rem>0)tips.push('برای رسیدن به هدف حدود '+fa(Math.ceil(rem/45))+' جلسه‌ی ۴۵ دقیقه‌ای مانده.');
-    tips.push('میانگین هر جلسه '+kkFmt(c.raw/c.n)+'، طولانی‌ترین جلسه '+kkFmt(c.lg)+'.');
-    if(c.ov>0)tips.push('حدود '+kkFmt(c.ov)+' از جلسه‌ها با هم همپوشانی داشت و یک بار حساب شد.');
+    if(rem>0)tips.push((EN?'About '+fa(Math.ceil(rem/45))+' more 45-minute sessions to reach your goal.':'برای رسیدن به هدف حدود '+fa(Math.ceil(rem/45))+' جلسه‌ی ۴۵ دقیقه‌ای مانده.'));
+    tips.push((EN?'Average session '+kkFmt(c.raw/c.n)+', longest session '+kkFmt(c.lg)+'.':'میانگین هر جلسه '+kkFmt(c.raw/c.n)+'، طولانی‌ترین جلسه '+kkFmt(c.lg)+'.'));
+    if(c.ov>0)tips.push((EN?'About '+kkFmt(c.ov)+' of your sessions overlapped and was counted once.':'حدود '+kkFmt(c.ov)+' از جلسه‌ها با هم همپوشانی داشت و یک بار حساب شد.'));
     var pv=kkDay(addDays(k,-1));
-    if(pv>0){var df=c.t-pv;tips.push(df>0?kkFmt(df)+' بیشتر از روز قبل خوانده‌ای.':(df<0?kkFmt(-df)+' کمتر از روز قبل.':'درست به اندازه‌ی روز قبل.'))}
+    if(pv>0){var df=c.t-pv;tips.push((EN?df>0?'You studied '+kkFmt(df)+' more than the day before.':(df<0?'You studied '+kkFmt(-df)+' less than the day before.':'Exactly the same as the day before.'):df>0?kkFmt(df)+' بیشتر از روز قبل خوانده‌ای.':(df<0?kkFmt(-df)+' کمتر از روز قبل.':'درست به اندازه‌ی روز قبل.')))}
   }
   return nav+sum+q+ls+subs+kkTips(tips);
 }
@@ -5087,20 +5283,20 @@ function kkStatsHTML(){
     return '<div class="hbar'+(d.t>=goal?' hit':'')+'" data-m="'+d.t+'" data-dl="'+esc(F.long.format(parse(d.k)))+'" title="'+esc(F.long.format(parse(d.k)))+': '+kkFmt(d.t)+'"><i style="height:'+hgt+'%"></i><small>'+lab+'</small>'+(N===7?'<b>'+(d.t?kkHrs(d.t):'')+'</b>':'')+'</div>';
   }).join('');
   var g1='<div class="hstats kk-gs"><div><b>'+kkShort(r.tot)+'</b><small>مجموع</small></div><div><b>'+kkShort(r.tot/N)+'</b><small>میانگین روزانه</small></div><div><b>'+kkShort(r.best)+'</b><small>بهترین روز</small></div></div>';
-  var g2='<div class="hstats kk-gs"><div><b>'+fa(r.act)+' از '+fa(N)+'</b><small>روز مطالعه</small></div><div><b>'+fa(r.hit)+'</b><small>روز هدف‌رسیده</small></div><div><b>'+fa(kkStreak())+'</b><small>روز پیاپی</small></div></div>';
+  var g2='<div class="hstats kk-gs"><div><b>'+fa(r.act)+(EN?' of ':' از ')+fa(N)+'</b><small>روز مطالعه</small></div><div><b>'+fa(r.hit)+'</b><small>روز هدف‌رسیده</small></div><div><b>'+fa(kkStreak())+'</b><small>روز پیاپی</small></div></div>';
   var chart='<section class="chart glass"><div class="chart-h"><h3>ساعت مطالعه</h3>'+segG([['7','۷ روز'],['30','۳۰ روز']],'kr',N===30?'30':'7')+'</div><div class="kk-bars'+(N===30?' n30':'')+'">'+bars+'</div><p class="hint">'+(N===7?'عدد بالای هر ستون ساعت است. ':'')+'ستون سبز یعنی به هدف روزانه رسیده‌ای.</p></section>';
   var tips=[];
   if(r.tot>0){
-    if(delta!==null&&delta<=300)tips.push('نسبت به '+fa(N)+' روز قبل از آن، '+(delta>=0?fa(delta)+'٪ بیشتر':fa(-delta)+'٪ کمتر')+' خوانده‌ای.');
+    if(delta!==null&&delta<=300)tips.push((EN?'Compared with the '+N+' days before that, you studied '+(delta>=0?delta+'% more':(-delta)+'% less')+'.':'نسبت به '+fa(N)+' روز قبل از آن، '+(delta>=0?fa(delta)+'٪ بیشتر':fa(-delta)+'٪ کمتر')+' خوانده‌ای.'));
     var arr=Object.keys(r.subs).filter(function(n){return n&&r.subs[n]>0}).sort(function(a,b){return r.subs[b]-r.subs[a]});
-    if(arr.length)tips.push('بیشترین وقت را به «'+esc(arr[0])+'» دادی ('+kkFmt(r.subs[arr[0]])+').');
-    if(arr.length>=3)tips.push('کم‌خوانده‌ترین درس این بازه «'+esc(arr[arr.length-1])+'» است.');
+    if(arr.length)tips.push((EN?'You gave the most time to "'+esc(arr[0])+'" ('+kkFmt(r.subs[arr[0]])+').':'بیشترین وقت را به «'+esc(arr[0])+'» دادی ('+kkFmt(r.subs[arr[0]])+').'));
+    if(arr.length>=3)tips.push((EN?'The least-studied subject in this period is "'+esc(arr[arr.length-1])+'".':'کم‌خوانده‌ترین درس این بازه «'+esc(arr[arr.length-1])+'» است.'));
     var s30=kkRange(30,0).subs,miss=Object.keys(s30).filter(function(n){return n&&s30[n]>0&&!(r.subs[n]>0)});
-    if(miss.length)tips.push('در این '+fa(N)+' روز سراغ «'+miss.slice(0,3).map(esc).join('»، «')+'» نرفته‌ای.');
+    if(miss.length)tips.push((EN?'In these '+N+' days you haven\'t touched "'+miss.slice(0,3).map(esc).join('", "')+'".':'در این '+fa(N)+' روز سراغ «'+miss.slice(0,3).map(esc).join('»، «')+'» نرفته‌ای.'));
     var r30=N===30?r:kkRange(30,0),ws=[0,0,0,0,0,0,0],wc=[0,0,0,0,0,0,0];
     r30.days.forEach(function(d){var w=parse(d.k).getDay();ws[w]+=d.t;wc[w]++});
     var bi=-1,bv=0;ws.forEach(function(v,i){var a=wc[i]?v/wc[i]:0;if(a>bv){bv=a;bi=i}});
-    if(bi>-1&&r30.act>=5)tips.push('پربارترین روز هفته‌ات '+KK_WD[bi]+' است (میانگین '+kkFmt(bv)+').');
+    if(bi>-1&&r30.act>=5)tips.push((EN?'Your most productive weekday is '+KK_WD[bi]+' (average '+kkFmt(bv)+').':'پربارترین روز هفته‌ات '+KK_WD[bi]+' است (میانگین '+kkFmt(bv)+').'));
   }
   return g1+g2+chart+(r.tot>0?'<h3 class="gh"><span>سهم درس‌ها</span></h3>'+kkSubBars(r.subs):'')+kkTips(tips);
 }
@@ -5108,7 +5304,7 @@ function viewKK(){
   var td=todayKey(),k=ui.kd||td;if(k>td)k=ui.kd=td;
   var st=ui.ksec==='stats',rpg=ui.ksec==='rep';
   return head(st?'ساعت‌های مطالعه':rpg?'گزارش‌های روزانه':F.long.format(parse(k)),'کنکوریا',{right:'<span class="kk-rb">'+(qaMicOK()?'<button type="button" id="kkMic" class="round glass" data-act="kkVoice" aria-label="ثبت مطالعه با صدا">'+icon('mic')+'</button>':'')+'<button type="button" class="round glass" data-act="kkAdd" aria-label="ثبت مطالعه">'+icon('plus')+'</button></span>'})+
-    kcCard()+ttCard()+rpCard()+rkCard()+tbCard()+mzBanners()+segG([['day','مطالعه'],['stats','آمار'],['rep','گزارش‌ها']],'ksec',st?'stats':rpg?'rep':'day')+
+    kcCard()+ttCard()+rpCard()+rkCard()+tbCard()+segG([['day','مطالعه'],['stats','آمار'],['rep','گزارش‌ها']],'ksec',st?'stats':rpg?'rep':'day')+
     (st?kkStatsHTML():rpg?rpHistHTML():kkDayHTML(k,td));
 }
 actions.ksec=function(d){ui.ksec=d.v;render('swap')};
@@ -5188,7 +5384,7 @@ function rpQs(){
   add('nap','میزان خواب طول روز','du');
   add('ph','میزان استفاده از گوشی','du');
   for(i=0;i<n;i++){
-    var p='p'+i,g={g:'پارت '+RP_ORD[i]};
+    var p='p'+i,g={g:EN?'Part '+(i+1):'پارت '+RP_ORD[i]};
     add(p+'n','نام درس و مبحث','tx',g);
     add(p+'st','ساعت مطالعه','du',g);
     add(p+'cl','ساعت آموزش و کلاس','du',g);
@@ -5251,13 +5447,13 @@ function rpPaint(){
     var qs=rpQs();if(rp.i>=qs.length)rp.i=qs.length-1;
     var q=qs[rp.i],v=rp.a[q.k],last=rp.i===qs.length-1,ok=!q.req||!!v;
     h='<div class="rp-pr" aria-hidden="true"><i style="width:'+Math.round((rp.i+1)/qs.length*100)+'%"></i></div>'+
-      '<div class="rp-q"><small>سؤال '+fa(rp.i+1)+' از '+fa(qs.length)+'</small>'+(q.g?'<span class="rp-g">'+esc(q.g)+'</span>':'')+'<h2>'+esc(q.t)+'</h2>'+(q.s?'<p class="hint">'+esc(q.s)+'</p>':'')+rpIn(q,v)+'</div>'+
+      '<div class="rp-q"><small>'+(EN?'Question '+fa(rp.i+1)+' of '+fa(qs.length):'سؤال '+fa(rp.i+1)+' از '+fa(qs.length))+'</small>'+(q.g?'<span class="rp-g">'+esc(q.g)+'</span>':'')+'<h2>'+esc(q.t)+'</h2>'+(q.s?'<p class="hint">'+esc(q.s)+'</p>':'')+rpIn(q,v)+'</div>'+
       '<div class="rp-ft">'+(rp.i>0?'<button type="button" class="rp-b" data-rp="prev">قبلی</button>':'<span></span>')+(q.req?'':'<button type="button" class="rp-b" data-rp="skip">رد کردن</button>')+
       '<button type="button" class="pill3d primary rp-nx" data-rp="next"'+(ok?'':' disabled')+'>'+(last?'پایان':'بعدی')+'</button></div>';
   }else if(rp.ph==='confirm'){
     var f=rpFacts();
     h='<div class="rp-q rp-c"><span class="rp-ok">'+icon('check')+'</span><h2>همهٔ سؤال‌ها جواب داده شد</h2>'+
-      '<p class="hint">'+fa(rp.a.parts)+' پارت'+(f.sp?' · '+kkFmt(f.sp)+' مطالعه':'')+(f.te?' · '+fa(f.te)+' تست':'')+'</p>'+
+      '<p class="hint">'+fa(rp.a.parts)+(EN?' parts':' پارت')+(f.sp?' · '+kkFmt(f.sp)+(EN?' of study':' مطالعه'):'')+(f.te?' · '+fa(f.te)+(EN?' tests':' تست'):'')+'</p>'+
       '<p class="rp-ask">فرم گزارش کار ساخته شود؟</p></div>'+
       '<div class="rp-ft"><button type="button" class="rp-b" data-rp="review">مرور پاسخ‌ها</button><button type="button" class="pill3d primary rp-nx" data-rp="make">تأیید و ساخت فرم</button></div>';
   }else if(rp.ph==='busy'){
@@ -5595,9 +5791,9 @@ document.addEventListener('click',function(e){
   if(d.te!==undefined){
     var te=+d.te,tc=+d.tc,cr=+d.cr;
     if(!te)barTip(host,e.clientX,e.clientY,'تستی ثبت نشده',dl,'',bar);
-    else if(tc&&e.target.closest('u'))barTip(host,e.clientX,e.clientY,'درست: '+fa(cr),'از '+fa(tc)+' تست · '+dl,'ok',bar);
-    else if(tc&&e.target.closest('.rp-tw'))barTip(host,e.clientX,e.clientY,'نادرست: '+fa(Math.max(0,tc-cr)),'از '+fa(tc)+' تست · '+dl,'bad',bar);
-    else barTip(host,e.clientX,e.clientY,fa(te)+' تست',(tc?'':'بدون تعداد درست · ')+dl,'',bar);
+    else if(tc&&e.target.closest('u'))barTip(host,e.clientX,e.clientY,'درست: '+fa(cr),(EN?'of '+fa(tc)+' tests · ':'از '+fa(tc)+' تست · ')+dl,'ok',bar);
+    else if(tc&&e.target.closest('.rp-tw'))barTip(host,e.clientX,e.clientY,'نادرست: '+fa(Math.max(0,tc-cr)),(EN?'of '+fa(tc)+' tests · ':'از '+fa(tc)+' تست · ')+dl,'bad',bar);
+    else barTip(host,e.clientX,e.clientY,fa(te)+(EN?' tests':' تست'),(tc?'':'بدون تعداد درست · ')+dl,'',bar);
   }else if(d.m!==undefined){
     var m=+d.m;
     barTip(host,e.clientX,e.clientY,m?kkFmt(m):'مطالعه‌ای ثبت نشده',dl,'',bar);
@@ -5621,9 +5817,20 @@ function kcFbClean(f){
   if(!it.length)return null;
   return {k:typeof f.k==='string'?f.k.slice(0,40):'',ts:Number(f.ts)||0,it:it};
 }
+function kcChClean(c){
+  var o={plan:[],rep:[],mot:[]};
+  if(c&&typeof c==='object')Object.keys(o).forEach(function(k){
+    if(!Array.isArray(c[k]))return;
+    o[k]=c[k].slice(-150).map(function(m){
+      if(!m||typeof m.t!=='string'||!m.t)return null;
+      var q={r:m.r==='u'?'u':'a',t:m.t.slice(0,600),ts:Number(m.ts)||0};if(typeof m.k==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(m.k))q.k=m.k;if(typeof m.re==='string'&&m.re&&m.re.length<=8)q.re=m.re;if(m.pin)q.pin=1;return q;
+    }).filter(Boolean);
+  });
+  return o;
+}
 function kcClean(x){
-  var o={dis:'',ts:0,fr:null,fp:null};
-  if(x&&typeof x==='object'){if(typeof x.dis==='string'&&/^[\w-]{0,24}$/.test(x.dis))o.dis=x.dis;o.ts=Number(x.ts)||0;o.fr=kcFbClean(x.fr);o.fp=kcFbClean(x.fp)}
+  var o={dis:'',ts:0,fr:null,fp:null,ch:{plan:[],rep:[],mot:[]}};
+  if(x&&typeof x==='object'){o.ch=kcChClean(x.ch);if(x.lx&&typeof x.lx==='object'){var lxo={},lxn=0;Object.keys(x.lx).forEach(function(w){if(lxn<300&&w.length<=24&&typeof x.lx[w]==='string'&&/^[a-z]{2,10}$/.test(x.lx[w])){lxo[w]=x.lx[w];lxn++}});o.lx=lxo}if(typeof x.dis==='string'&&/^[\w-]{0,24}$/.test(x.dis))o.dis=x.dis;o.ts=Number(x.ts)||0;o.fr=kcFbClean(x.fr);o.fp=kcFbClean(x.fp)}
   return o;
 }
 function kcD(){var p=state.profile;p.kc=kcClean(p.kc);return p.kc}
@@ -5678,42 +5885,161 @@ function kcAdvice(a){
   /* ---- hours ---- */
   var avg=a.avg,act=a.act;
   if(act/a.N<.7){
-    o.push({ic:'clock',h:'پیوستگی مطالعه',t:'در '+fa(a.N)+' روز اخیر فقط '+fa(act)+' روز مطالعه ثبت شده. قبل از زیاد کردن ساعت‌ها، روزهای خالی را پر کن: حتی یک جلسه‌ی ۴۵ دقیقه‌ای در روزهای خالی از یک روز طولانی و یک روز تعطیل بهتر است.'});
+    o.push({ic:'clock',h:'پیوستگی مطالعه',t:(EN?'In the last '+fa(a.N)+' days you logged study on only '+fa(act)+' days. Before increasing your hours, fill in the empty days: even one 45-minute session on empty days is better than one long day and one day off.':'در '+fa(a.N)+' روز اخیر فقط '+fa(act)+' روز مطالعه ثبت شده. قبل از زیاد کردن ساعت‌ها، روزهای خالی را پر کن: حتی یک جلسه‌ی ۴۵ دقیقه‌ای در روزهای خالی از یک روز طولانی و یک روز تعطیل بهتر است.')});
   }
   if(avg>=540){
-    o.push({ic:'clock',h:'ساعت مطالعه کافی است',t:'میانگین روزانه‌ات '+kkFmt(avg)+' است. به‌جای زیاد کردن ساعت، کیفیت را بالا ببر: مرور فعال، تست زماندار و تحلیل غلط‌ها. خواب کافی هم جزو برنامه است.'});
+    o.push({ic:'clock',h:'ساعت مطالعه کافی است',t:(EN?'Your daily average is '+kkFmt(avg)+'. Instead of adding hours, raise the quality: active review, timed tests and analyzing mistakes. Enough sleep is part of the plan too.':'میانگین روزانه‌ات '+kkFmt(avg)+' است. به‌جای زیاد کردن ساعت، کیفیت را بالا ببر: مرور فعال، تست زماندار و تحلیل غلط‌ها. خواب کافی هم جزو برنامه است.')});
   }else{
     var tg=Math.min(600,Math.max(kcRound(avg*1.15,15),kcRound(avg+15,15)));
-    var base=avg>0?'میانگین روزانه‌ی '+fa(a.N)+' روز اخیرت '+kkFmt(avg)+(goal?' (هدف '+kkFmt(goal)+')':'')+' است. ':'';
-    var tr=a.w2>0?(a.w1>a.w2*1.05?' روند هفته‌ی اخیر رو به بالاست؛ ادامه بده.':(a.w1<a.w2*.9?' نسبت به هفته‌ی قبل کمتر شده است.':'')):'';
-    o.push({ic:'clock',h:'افزایش ساعت مطالعه',t:base+'پیشنهاد: هفته‌ی بعد روزی '+kkFmt(tg)+' (حدود ۱۵٪ بیشتر). افزایش تدریجی ماندگارتر از جهش ناگهانی است؛ اضافه‌ی هر روز را یک جلسه‌ی ۴۵ دقیقه‌ای بگذار.'+tr,act:tg!==goal?{k:'goal',v:tg,lb:'هدف روزانه را '+kkFmt(tg)+' کن'}:null});
+    var base=avg>0?(EN?'Your daily average over the last '+fa(a.N)+' days is '+kkFmt(avg)+(goal?' (goal '+kkFmt(goal)+')':'')+'. ':'میانگین روزانه‌ی '+fa(a.N)+' روز اخیرت '+kkFmt(avg)+(goal?' (هدف '+kkFmt(goal)+')':'')+' است. '):'';
+    var tr=a.w2>0?(a.w1>a.w2*1.05?(EN?' This week\'s trend is upward; keep going.':' روند هفته‌ی اخیر رو به بالاست؛ ادامه بده.'):(a.w1<a.w2*.9?(EN?' It has dropped compared with last week.':' نسبت به هفته‌ی قبل کمتر شده است.'):'')):'';
+    o.push({ic:'clock',h:'افزایش ساعت مطالعه',t:base+(EN?'Suggestion: next week, '+kkFmt(tg)+' per day (about 15% more). A gradual increase lasts longer than a sudden jump; make each day\'s extra one 45-minute session.':'پیشنهاد: هفته‌ی بعد روزی '+kkFmt(tg)+' (حدود ۱۵٪ بیشتر). افزایش تدریجی ماندگارتر از جهش ناگهانی است؛ اضافه‌ی هر روز را یک جلسه‌ی ۴۵ دقیقه‌ای بگذار.')+tr,act:tg!==goal?{k:'goal',v:tg,lb:(EN?'Set the daily goal to '+kkFmt(tg):'هدف روزانه را '+kkFmt(tg)+' کن')}:null});
   }
   var wi=-1,wv=1e9,bi=-1,bv=-1;
   a.wd.forEach(function(v,i){if(!a.wn[i])return;var x=v/a.wn[i];if(x<wv){wv=x;wi=i}if(x>bv){bv=x;bi=i}});
-  if(wi>-1&&bi>-1&&bv>0&&wv<bv*.5&&a.N>=14)o.push({ic:'calendar',h:'روز ضعیف هفته',t:KK_WD[wi]+' ضعیف‌ترین روز تو است (میانگین '+kkFmt(wv)+' در برابر '+kkFmt(bv)+' در '+KK_WD[bi]+'). یک بلوک ثابت ۶۰ دقیقه‌ای برای این روز بگذار.'});
+  if(wi>-1&&bi>-1&&bv>0&&wv<bv*.5&&a.N>=14)o.push({ic:'calendar',h:'روز ضعیف هفته',t:(EN?KK_WD[wi]+' is your weakest day (average '+kkFmt(wv)+' vs '+kkFmt(bv)+' on '+KK_WD[bi]+'). Set a fixed 60-minute block for this day.':KK_WD[wi]+' ضعیف‌ترین روز تو است (میانگین '+kkFmt(wv)+' در برابر '+kkFmt(bv)+' در '+KK_WD[bi]+'). یک بلوک ثابت ۶۰ دقیقه‌ای برای این روز بگذار.')});
   var sub=Object.keys(a.mins).filter(function(n){return n&&n!=='آزمون'&&a.mins[n]>0}).sort(function(x,y){return a.mins[x]-a.mins[y]});
-  if(sub.length>=3)o.push({ic:'book',h:'درس کم‌خوانده',t:'«'+esc(sub[0])+'» کمترین زمان را گرفته ('+kkFmt(a.mins[sub[0]])+'). یک جلسه‌ی ثابت در هفته برایش بگذار تا عقب نیفتد.'});
+  if(sub.length>=3)o.push({ic:'book',h:'درس کم‌خوانده',t:(EN?'"'+esc(sub[0])+'" has gotten the least time ('+kkFmt(a.mins[sub[0]])+'). Set a fixed weekly session for it so it doesn\'t fall behind.':'«'+esc(sub[0])+'» کمترین زمان را گرفته ('+kkFmt(a.mins[sub[0]])+'). یک جلسه‌ی ثابت در هفته برایش بگذار تا عقب نیفتد.')});
   /* ---- tests ---- */
   if(!a.teDays){
     o.push({ic:'test',h:'تست‌هایت را ثبت کن',t:'در گزارش‌ها تستی ثبت نشده. بعد از هر پارت تعداد تست و درصد را در گزارش بنویس تا مربی بتواند تست‌ها را تحلیل کند.'});
   }else{
     var te=a.teAvg,tt=Math.max(kcRound(te*1.2,5),kcRound(te+10,5));
     var rate=a.perHour;
-    var tx='میانگین تست‌هایت در روزهای گزارش‌دار '+fa(Math.round(te))+' تست است'+(rate!=null?' (حدود '+fa(Math.round(rate))+' تست در هر ساعت مطالعه)':'')+'. ';
-    if(rate!=null&&rate<10)tx+='نسبت تست به مطالعه پایین است؛ برای کنکور بعد از هر مبحث تست موضوعی بزن. ';
-    tx+='پیشنهاد: هفته‌ی بعد روزی '+fa(tt)+' تست، در دو یا سه نوبت (مثلاً بعد از هر دو پارت مطالعه).';
+    var tx=(EN?'Your average on days with reports is '+fa(Math.round(te))+' tests'+(rate!=null?' (about '+fa(Math.round(rate))+' tests per study hour)':'')+'. ':'میانگین تست‌هایت در روزهای گزارش‌دار '+fa(Math.round(te))+' تست است'+(rate!=null?' (حدود '+fa(Math.round(rate))+' تست در هر ساعت مطالعه)':'')+'. ');
+    if(rate!=null&&rate<10)tx+=(EN?'The test-to-study ratio is low; for the Konkur, do topic tests after every topic. ':'نسبت تست به مطالعه پایین است؛ برای کنکور بعد از هر مبحث تست موضوعی بزن. ');
+    tx+=(EN?'Suggestion: next week, '+fa(tt)+' tests per day, in two or three rounds (e.g. after every two study parts).':'پیشنهاد: هفته‌ی بعد روزی '+fa(tt)+' تست، در دو یا سه نوبت (مثلاً بعد از هر دو پارت مطالعه).');
     o.push({ic:'test',h:'افزایش تعداد تست',t:tx,act:{k:'tests',v:tt,lb:'ساخت کار تست برای ۷ روز آینده'}});
     if(a.acc!=null&&a.tc>=20){
-      if(a.acc<50)o.push({ic:'flag',h:'درصد پایین',t:'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. قبل از زیاد کردن تعداد، همه‌ی غلط‌ها و نزده‌ها را تحلیل کن و مبحث را دوباره بخوان؛ تست بیشتر بدون مرور غلط‌ها اثر کمی دارد.'});
-      else if(a.acc>=75)o.push({ic:'flag',h:'درصد خوب',t:'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. وقت آن است که تست زماندار و سخت‌تر اضافه کنی.'});
+      if(a.acc<50)o.push({ic:'flag',h:'درصد پایین',t:(EN?'Your test accuracy is '+fa(Math.round(a.acc))+'%. Before increasing the number, analyze all wrong and skipped answers and reread the topic; more tests without reviewing mistakes have little effect.':'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. قبل از زیاد کردن تعداد، همه‌ی غلط‌ها و نزده‌ها را تحلیل کن و مبحث را دوباره بخوان؛ تست بیشتر بدون مرور غلط‌ها اثر کمی دارد.')});
+      else if(a.acc>=75)o.push({ic:'flag',h:'درصد خوب',t:(EN?'Your test accuracy is '+fa(Math.round(a.acc))+'%. It\'s time to add timed and harder tests.':'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. وقت آن است که تست زماندار و سخت‌تر اضافه کنی.')});
     }
     var sl=Object.keys(a.subj).filter(function(n){return a.subj[n].tc>=15}).sort(function(x,y){return a.subj[x].cr/a.subj[x].tc-a.subj[y].cr/a.subj[y].tc});
-    if(sl.length>=2){var w=sl[0],p=Math.round(a.subj[w].cr/a.subj[w].tc*100);o.push({ic:'target',h:'ضعیف‌ترین درس در تست',t:'در «'+esc(w)+'» '+fa(p)+'٪ درست زده‌ای ('+fa(a.subj[w].te)+' تست). دو جلسه‌ی مرور مبحث و '+fa(20)+' تست موضوعی در هفته برایش بگذار.'})}
+    if(sl.length>=2){var w=sl[0],p=Math.round(a.subj[w].cr/a.subj[w].tc*100);o.push({ic:'target',h:'ضعیف‌ترین درس در تست',t:(EN?'In "'+esc(w)+'" you got '+fa(p)+'% right ('+fa(a.subj[w].te)+' tests). Set two topic-review sessions and '+fa(20)+' topic tests per week for it.':'در «'+esc(w)+'» '+fa(p)+'٪ درست زده‌ای ('+fa(a.subj[w].te)+' تست). دو جلسه‌ی مرور مبحث و '+fa(20)+' تست موضوعی در هفته برایش بگذار.')})}
     var nt=Object.keys(a.mins).filter(function(n){return n&&n!=='آزمون'&&a.mins[n]>=60&&!(a.subj[n]&&a.subj[n].te>0)&&KK_SUBS.indexOf(n)>-1});
-    if(nt.length&&sl.length)o.push({ic:'test',h:'درس بدون تست',t:'برای «'+nt.slice(0,3).map(esc).join('»، «')+'» تستی ثبت نکرده‌ای. بعد از مطالعه‌ی هر درس حداقل ۱۰ تست بزن.'});
+    if(nt.length&&sl.length)o.push({ic:'test',h:'درس بدون تست',t:(EN?'You haven\'t logged tests for "'+nt.slice(0,3).map(esc).join('", "')+'". After studying each subject, do at least 10 tests.':'برای «'+nt.slice(0,3).map(esc).join('»، «')+'» تستی ثبت نکرده‌ای. بعد از مطالعه‌ی هر درس حداقل ۱۰ تست بزن.')});
     if(!a.recent)o.push({ic:'edit',h:'گزارش‌ها را به‌روز کن',t:'در ۷ روز اخیر گزارشی ثبت نکرده‌ای؛ تحلیل بر اساس داده‌های قدیمی است.'});
   }
   return o;
+}
+/* ---------- deeper coach (مربی هوشمند، لایه‌ی دوم) ----------
+   Works offline from rules + the user's own data: the exam list of "تخمین رتبه" (percent / counts per lesson, lesson coefficients),
+   the study minutes, and the time left to the Konkur. It adds: the stage of preparation, lesson priority by coefficient x gap,
+   time-vs-coefficient mismatch, falling / rising lessons, mistake diagnosis (wrong vs blank, negative marking), a weekly time split
+   with a button that writes the sessions into the planner, and a spaced-review plan (+1, +3, +7, +14 days) for the weakest lessons. */
+function kcHM(m){m=Math.round(m/5)*5;var h=Math.floor(m/60),r=m%60;return (h?fa(h)+' ساعت':'')+(h&&r?' و ':'')+(r||!h?fa(r)+' دقیقه':'')}
+function kcMin(l){return l==='دین و زندگی'?'دینی':l}
+function kcExams(){
+  var D=rkD(),ex=D.exams.slice().sort(function(a,b){return b.ts-a.ts});
+  if(!ex.length&&(Object.keys(D.cur.pc).length||Object.keys(D.cur.cn).length))ex=[D.cur];
+  return ex;
+}
+/* days left to the Konkur of year yr (about 15 Tir); null if it is over or too far away to matter */
+function kcStage(yr){
+  var d=new Date(yr+621,6,6),n=new Date(),n0=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  var left=Math.ceil((d-n0)/864e5);
+  if(!(left>0&&left<=900))return null;
+  return {n:left,s:left>240?0:left>120?1:left>45?2:left>14?3:4};
+}
+var KC_ST=[
+  ['پایه‌سازی','اولویت الان فهمیدن عمیق مفاهیم و تمام کردن کتاب‌هاست، نه سرعت. نسبت مناسب: حدود ۶۵٪ مطالعه و ۳۵٪ تست موضوعی. هر هفته یک آزمون کوتاه بزن تا ضعف‌ها زود پیدا شوند و مرور فاصله‌دار را از همین حالا عادت کن.'],
+  ['تثبیت','کتاب‌ها باید یک دور کامل خوانده شده باشند؛ اگر نیست، مباحث عقب‌افتاده را اول بگذار. نسبت مناسب: نصف زمان مطالعه و مرور، نصف تست. هر هفته یک آزمون جامع بزن و برای تحلیل غلط‌هایش تقریباً به‌اندازه‌ی خود آزمون وقت بگذار.'],
+  ['جمع‌بندی','بیشتر زمان (حدود ۷۰٪) باید تست و تحلیل غلط‌ها باشد. هفته‌ای دو آزمون جامع در ساعت واقعی کنکور بزن، دفترچه‌ی غلط‌ها بساز و هر هفته مرورش کن. درس‌های پرضریب را رها نکن.'],
+  ['مرور نهایی','کتاب تازه شروع نکن. فقط مرور سریع نکات و فرمول‌ها، دفترچه‌ی غلط‌ها و آزمون‌های جامع با ساعت واقعی. ساعت خواب و بیداری‌ات را به ساعت آزمون عادت بده.'],
+  ['هفته‌های آخر','مرور سبک، خواب کافی و تغذیه‌ی منظم. شب قبل از آزمون مطلب تازه نخوان و آزمون سخت نزن. استراتژی زدن و نزدن و مدیریت زمان را مرور کن.']
+];
+function kcTask(t,d,p,note){
+  return {id:uid(),done:false,doneAt:0,ts:Date.now()+Math.floor(Math.random()*1000),t:t,n:note||'پیشنهاد مربی',d:d,tm:'',te:'',col:'',p:p||0,c:ttCatId(),r:-1,rp:'',st:[],tg:['مربی']};
+}
+/* weekly sessions of 90 minutes, shared out by the recommended time of each lesson, at most 3 per day, a lesson at most once a day */
+function kcMakeFocus(rows){
+  var td=todayKey(),start=new Date().getHours()>=20?1:0,cap=3,by={},order=[],more=true,dayL=[],i,n=0;
+  rows.forEach(function(r){by[r.n]=Math.max(1,Math.round(r.rec/90))});
+  while(more){more=false;rows.forEach(function(r){if(by[r.n]>0){order.push(r.n);by[r.n]--;more=true}})}
+  order=order.slice(0,(7-start)*cap);
+  for(i=0;i<7;i++)dayL.push([]);
+  order.forEach(function(l){
+    var best=-1;
+    for(i=start;i<7;i++){if(dayL[i].indexOf(l)>-1||dayL[i].length>=cap)continue;if(best<0||dayL[i].length<dayL[best].length)best=i}
+    if(best>-1)dayL[best].push(l);
+  });
+  dayL.forEach(function(ls,d){ls.forEach(function(l){
+    var top=rows[0]&&rows[0].n===l;
+    state.tasks.push(kcTask('مطالعه‌ی '+l+' · '+fa(90)+' دقیقه',addDays(td,d),top?1:0,'سهم پیشنهادی مربی از این هفته'));n++;
+  })});
+  mutate();toast(fa(n)+' جلسه‌ی مطالعه به برنامه‌ریز اضافه شد',null,null,'ok');
+}
+/* spaced review: +1, +3, +7 and +14 days for each weak lesson (start days shifted so one day is not overloaded) */
+function kcMakeReview(ls){
+  var td=todayKey(),steps=[[1,'مرور غلط‌ها و نکات «%»'],[3,'۲۰ تست مروری «%»'],[7,'تست زماندار «%» و مرور غلط‌ها'],[14,'آزمون ۳۰تایی «%» و تحلیل کامل']],n=0;
+  ls.forEach(function(l,i){steps.forEach(function(s,j){state.tasks.push(kcTask(s[1].replace('%',l),addDays(td,s[0]+i),j===3?1:0,'مرور فاصله‌دار؛ پیشنهاد مربی'));n++})});
+  mutate();toast(fa(n)+' کار مرور فاصله‌دار اضافه شد',null,null,'ok');
+}
+/* -> {items:[{ic,h,t,act}], focusHTML} */
+function kcDeep(a){
+  var items=[],focusHTML='';
+  var D=rkD(),ex=kcExams(),e0=ex[0]||null,g=e0?e0.g:D.cur.g,G=RK_G[g];
+  /* 1. stage of preparation */
+  var st=kcStage(D.cur.yr);
+  if(st){
+    var S=KC_ST[st.s];
+    items.push({ic:'calendar',h:'مرحله‌ی کنکور: '+S[0],t:'تا کنکور '+fa(D.cur.yr)+' حدود '+fa(st.n)+' روز مانده ('+fa(Math.round(st.n/7))+' هفته). '+S[1]+' (سال کنکور را از «تخمین رتبه» می‌توانی عوض کنی.)'});
+  }
+  if(!e0){
+    items.push({ic:'target',h:'تحلیل درس‌ها را فعال کن',t:'یک آزمون (آزمایشی یا کنکور سال قبل) را در «تخمین رتبه» ثبت کن. با درصد هر درس، مربی می‌فهمد کدام درس بیشترین بازده را دارد، زمانت را بر اساس ضریب تقسیم می‌کند و غلط‌ها را تشخیص می‌دهد.'});
+    return {items:items,focusHTML:''};
+  }
+  /* 2. lessons of the latest exam */
+  var prev=null,i;
+  for(i=1;i<ex.length;i++)if(ex[i].g===g){prev=ex[i];break}
+  var rows=[];
+  G.L.forEach(function(l){
+    var p=rkPct(e0,l[0]);if(p===null)return;
+    var pp=prev?rkPct(prev,l[0]):null,cl=Math.max(0,Math.min(100,p));
+    rows.push({n:l[0],c:l[1],p:p,pp:pp,pr:l[1]*(100-cl),w:l[1]*(100-cl+20)});
+  });
+  if(!rows.length)return {items:items,focusHTML:''};
+  var by=rows.slice().sort(function(x,y){return y.pr-x.pr}),top=by.slice(0,3);
+  var est=null,gains={};
+  try{est=rkEst(e0,ex);if(est)rkLessons(e0,est).forEach(function(r){gains[r.n]=r.gain})}catch(er){}
+  var t2='بیشترین بازده‌ی مطالعه با ضریب و فاصله‌ات تا درصد کامل: '+top.map(function(r){return '«'+esc(r.n)+'» (ضریب '+fa(r.c)+'، درصد '+fa(Math.round(r.p))+')'}).join('، ')+'.';
+  if(gains[top[0].n]>0)t2+=' برای نمونه ۱۰٪ رشد در «'+esc(top[0].n)+'» حدود '+rkFmt(rkRound(gains[top[0].n]))+' رتبه‌ی کشوری بهتر می‌شود؛ مطالعه و مرور فاصله‌دار را اول از همین‌ها شروع کن.';
+  items.push({ic:'target',h:'اولویت درس‌ها',t:t2,act:{k:'review',ls:top.map(function(r){return r.n}),lb:'ساخت '+fa(top.length*4)+' کار مرور فاصله‌دار'}});
+  /* 3. time share vs coefficient */
+  var totM=0;rows.forEach(function(r){r.cur=a.mins[kcMin(r.n)]||0;totM+=r.cur});
+  var sw=0;rows.forEach(function(r){sw+=r.w});
+  if(totM>=300){
+    var bad=rows.filter(function(r){var rec=r.w/sw,cur=r.cur/totM;return r.c>=3&&r.p<70&&cur<rec*.6}).sort(function(x,y){return y.pr-x.pr})[0];
+    if(bad)items.push({ic:'clock',h:'زمانت با ضریب نمی‌خواند',t:'«'+esc(bad.n)+'» ضریب '+fa(bad.c)+' دارد و درصدت '+fa(Math.round(bad.p))+' است، ولی فقط '+fa(Math.round(bad.cur/totM*100))+'٪ زمان این دو هفته‌ات به آن رسیده؛ سهم پیشنهادی حدود '+fa(Math.round(bad.w/sw*100))+'٪ است. از درس‌هایی که درصدشان بالاست زمان بردار و به این درس بده.'});
+  }
+  /* 4. falling and rising lessons since the previous exam */
+  if(prev){
+    var dn=rows.filter(function(r){return r.pp!=null&&r.p-r.pp<=-8}).sort(function(x,y){return (x.p-x.pp)-(y.p-y.pp)});
+    var up=rows.filter(function(r){return r.pp!=null&&r.p-r.pp>=8}).sort(function(x,y){return (y.p-y.pp)-(x.p-x.pp)});
+    if(dn.length)items.push({ic:'flag',h:'افت درصد',t:dn.slice(0,3).map(function(r){return '«'+esc(r.n)+'» '+fa(Math.round(r.pp))+' ← '+fa(Math.round(r.p))}).join('، ')+'. علت‌های رایج: مرور نشدن مباحث قبلی، کم شدن زمان درس یا سخت‌تر بودن آزمون. مباحث آزمون را مرور کن و تست موضوعی بزن؛ اگر آزمون سخت‌تر بوده، افت همه‌ی درس‌ها مشابه است و نگران نباش.'});
+    if(up.length)items.push({ic:'star',h:'رشد خوب',t:up.slice(0,3).map(function(r){return '«'+esc(r.n)+'» '+fa(Math.round(r.pp))+' ← '+fa(Math.round(r.p))}).join('، ')+'. روشی که در این درس‌ها داشتی را نگه دار و همان را در درس‌های ضعیف‌تر به کار ببر.'});
+  }
+  /* 5. mistake diagnosis (needs counts: correct / wrong / blank) */
+  var cr=[];
+  G.L.forEach(function(l){
+    var c=e0.cn&&e0.cn[l[0]];if(!c)return;
+    var t=c.c+c.w+c.n;if(t<15)return;
+    cr.push({n:l[0],t:t,w:c.w/t,b:c.n/t,acc:(c.c+c.w)?c.c/(c.c+c.w):1});
+  });
+  var gw=cr.filter(function(x){return x.w>=.25&&x.acc<.75}).sort(function(x,y){return y.w-x.w})[0];
+  if(gw)items.push({ic:'bulb',h:'غلط زیاد در «'+esc(gw.n)+'»',t:fa(Math.round(gw.w*100))+'٪ سؤال‌هایش غلط است و دقت زدن‌هایت '+fa(Math.round(gw.acc*100))+'٪ است. هر غلط یک‌سوم یک درست را می‌برد؛ زدن فقط وقتی به‌صرفه است که احتمال درستی بیشتر از ۲۵٪ باشد. قانون ساده: اگر دست‌کم یک گزینه را با دلیل حذف کردی بزن، وگرنه نزن. غلط‌ها را در دفترچه بنویس و علتشان را (مفهوم، محاسبه، بی‌دقتی) جدا کن.'});
+  var gb=cr.filter(function(x){return x.b>=.4}).sort(function(x,y){return y.b-x.b})[0];
+  if(gb)items.push({ic:'bulb',h:'نزده زیاد در «'+esc(gb.n)+'»',t:fa(Math.round(gb.b*100))+'٪ سؤال‌ها را نزده‌ای. یا مبحثش را بلد نیستی یا زمان کم می‌آوری. فهرست مباحث نزده را بنویس و همان‌ها را اول مطالعه کن؛ برای زمان، تست‌های همین درس را با زمان‌سنج و با زمان کمی کمتر از زمان واقعی بزن.'});
+  /* 6. weekly time split + button that writes the sessions into the planner */
+  var week=(a.avg>0?a.avg:(kkD().goal||300))*7;
+  var fr=rows.slice().sort(function(x,y){return y.pr-x.pr}).map(function(r){return {n:r.n,c:r.c,p:r.p,rec:week*r.w/sw,cur:r.cur/(a.N/7)}});
+  var mx=Math.max.apply(null,fr.map(function(r){return Math.max(r.rec,r.cur)}).concat([1]));
+  focusHTML='<div class="kc-focus"><h3 class="kc-h2">سهم پیشنهادی درس‌ها در هفته</h3><p class="hint">بر اساس ضریب هر درس و درصدت؛ کل زمان هفته را '+kkFmt(Math.round(week))+' گرفتم (میانگین روزانه‌ات × ۷).</p>'+
+    fr.map(function(r){return '<div class="kc-fr"><span class="kc-fn">'+esc(r.n)+'</span><span class="kc-fb"><i style="width:'+Math.round(r.rec/mx*100)+'%"></i><u style="width:'+Math.round(r.cur/mx*100)+'%"></u></span><span class="kc-fv">'+kcHM(r.rec)+'<small>الان '+kcHM(r.cur)+'</small></span></div>'}).join('')+
+    '<p class="hint kc-leg"><i></i> پیشنهاد مربی &nbsp; <u></u> زمان واقعی‌ات</p>'+
+    '<button type="button" class="tt-btn pri" data-kc="act" data-i="'+items.length+'">ساخت جلسه‌های ۹۰ دقیقه‌ای این هفته</button></div>';
+  items.push({ic:'clock',h:'تقسیم زمان هفته',t:'جدول «سهم پیشنهادی» را پایین همین صفحه ببین؛ با یک دکمه جلسه‌ها را در برنامه‌ریز بساز.',act:{k:'focus',rows:fr,lb:'ساخت جلسه‌های ۹۰ دقیقه‌ای این هفته'},hide:true});
+  return {items:items,focusHTML:focusHTML};
 }
 /* ---- suggested timetable, built from the user's own table: their cells stay, free parts are filled ---- */
 function kcSrc(){
@@ -5807,7 +6133,7 @@ function kcMakeTests(v,a){
   for(i=0;i<7;i++){
     var d=addDays(td,i+(i===0?0:0)),l=names[i%names.length];
     if(i===0&&new Date().getHours()>=20)continue;
-    state.tasks.push({id:uid(),done:false,doneAt:0,ts:Date.now()+i,t:fa(per)+' تست '+l,n:'برای بالا بردن تعداد تست (پیشنهاد مربی)',d:d,tm:'',te:'',col:'',p:1,c:cid,r:-1,rp:'',st:[],tg:['تست']});n++;
+    state.tasks.push({id:uid(),done:false,doneAt:0,ts:Date.now()+i,t:fa(per)+(EN?' tests: ':' تست ')+l,n:'برای بالا بردن تعداد تست (پیشنهاد مربی)',d:d,tm:'',te:'',col:'',p:1,c:cid,r:-1,rp:'',st:[],tg:['تست']});n++;
   }
   mutate();toast(fa(n)+' کار تست به برنامه‌ریز اضافه شد',null,null,'ok');
 }
@@ -5816,18 +6142,18 @@ function kcMakeTests(v,a){
 function kcFbReport(k){
   var r=rpD()[k];if(!r)return null;
   var a=kcAnalyze(KC_N),g=kkD().goal,it=[],m=Math.max(kkDay(k),r.sp),others=a.N>1?(a.tot-m)/(a.N-1):0;
-  var sum='امروز '+kkFmt(m)+' مطالعه ثبت کرده‌ای';
-  if(g)sum+=m>=g?' و به هدف روزانه‌ات ('+kkFmt(g)+') رسیدی. آفرین!':' که '+kkFmt(g-m)+' کمتر از هدفت ('+kkFmt(g)+') است.';
+  var sum=(EN?'Today you logged '+kkFmt(m)+' of study':'امروز '+kkFmt(m)+' مطالعه ثبت کرده‌ای');
+  if(g)sum+=m>=g?(EN?' and reached your daily goal ('+kkFmt(g)+'). Well done!':' و به هدف روزانه‌ات ('+kkFmt(g)+') رسیدی. آفرین!'):(EN?', which is '+kkFmt(g-m)+' short of your goal ('+kkFmt(g)+').':' که '+kkFmt(g-m)+' کمتر از هدفت ('+kkFmt(g)+') است.');
   else sum+='.';
-  if(others>0)sum+=m>others*1.15?' از میانگین روزهای دیگرت بیشتر بود.':(m<others*.8?' از میانگین روزهای دیگرت کمتر بود.':' نزدیک به میانگین همیشگی‌ات بود.');
+  if(others>0)sum+=m>others*1.15?(EN?' That was above your average on other days.':' از میانگین روزهای دیگرت بیشتر بود.'):(m<others*.8?(EN?' That was below your average on other days.':' از میانگین روزهای دیگرت کمتر بود.'):(EN?' That was close to your usual average.':' نزدیک به میانگین همیشگی‌ات بود.'));
   it.push({ic:'clock',h:'ساعت مطالعه',t:sum});
   if(!r.te){
     it.push({ic:'test',h:'تست',t:'در این گزارش تستی ثبت نشده. فردا بعد از هر پارت مطالعه چند تست بزن و تعداد و درصد را در گزارش بنویس.'});
   }else{
-    var tx='در این گزارش '+fa(r.te)+' تست زده‌ای';
+    var tx=(EN?'In this report you did '+fa(r.te)+' tests':'در این گزارش '+fa(r.te)+' تست زده‌ای');
     if(r.tc>=10){
       var ac=Math.round(r.cr/r.tc*100);
-      tx+=' و درصد درست '+fa(ac)+'٪ بوده. ';
+      tx+=(EN?' and the correct percentage was '+fa(ac)+'%. ':' و درصد درست '+fa(ac)+'٪ بوده. ');
       tx+=ac<50?'درصد پایین است؛ قبل از تست بیشتر، غلط‌ها را تحلیل کن و مبحث را دوباره بخوان.':(ac>=75?'عالی است؛ فردا چند تست سخت‌تر یا زماندار اضافه کن.':'خوب است؛ با مرور غلط‌ها می‌توانی از این هم بالاتر بروی.');
     }else tx+='. برای تحلیل دقیق‌تر درصد هر پارت را هم بنویس.';
     it.push({ic:'test',h:'تست',t:tx});
@@ -5837,10 +6163,10 @@ function kcFbReport(k){
     if(ps.length>=2){
       ps.sort(function(x,y){return x.pc-y.pc});
       var lo=ps[0],hi=ps[ps.length-1];
-      if(lo.pc<hi.pc)it.push({ic:'target',h:'درس‌ها',t:'بهترین نتیجه‌ات در «'+hi.l+'» ('+fa(Math.round(hi.pc))+'٪) و ضعیف‌ترین در «'+lo.l+'» ('+fa(Math.round(lo.pc))+'٪) بود. فردا یک مرور کوتاه روی «'+lo.l+'» بگذار.'});
+      if(lo.pc<hi.pc)it.push({ic:'target',h:'درس‌ها',t:(EN?'Your best result was in "'+hi.l+'" ('+fa(Math.round(hi.pc))+'%) and your weakest in "'+lo.l+'" ('+fa(Math.round(lo.pc))+'%). Tomorrow, schedule a short review of "'+lo.l+'".':'بهترین نتیجه‌ات در «'+hi.l+'» ('+fa(Math.round(hi.pc))+'٪) و ضعیف‌ترین در «'+lo.l+'» ('+fa(Math.round(lo.pc))+'٪) بود. فردا یک مرور کوتاه روی «'+lo.l+'» بگذار.')});
     }
   }catch(e){}
-  if(r.sp&&r.cl&&r.cl>r.sp*1.5)it.push({ic:'bulb',h:'کلاس و مطالعه',t:'زمان کلاس '+kkFmt(r.cl)+' بوده و مطالعه‌ی شخصی '+kkFmt(r.sp)+'. بخشی از مطالب کلاس را همان روز مرور کن تا یادت بماند.'});
+  if(r.sp&&r.cl&&r.cl>r.sp*1.5)it.push({ic:'bulb',h:'کلاس و مطالعه',t:(EN?'Class time was '+kkFmt(r.cl)+' and personal study '+kkFmt(r.sp)+'. Review part of the class material the same day so it sticks.':'زمان کلاس '+kkFmt(r.cl)+' بوده و مطالعه‌ی شخصی '+kkFmt(r.sp)+'. بخشی از مطالب کلاس را همان روز مرور کن تا یادت بماند.')});
   return {k:k,ts:Date.now(),it:it};
 }
 function kcFbPlan(t,name){
@@ -5857,20 +6183,20 @@ function kcFbPlan(t,name){
   }
   if(!total)return null;
   var act=cnt.filter(function(x){return x>0}).length;
-  it.push({ic:'calendar',h:'نمای کلی',t:'برنامه‌ی «'+name||'بدون نام'+'» '+fa(total)+' پارت در '+fa(act)+' روز هفته دارد (میانگین '+fa(Math.round(total/act*10)/10)+' پارت در روزهای پر).'});
+  it.push({ic:'calendar',h:'نمای کلی',t:(EN?'The plan "'+(name||'Untitled')+'" has '+fa(total)+' parts across '+fa(act)+' days of the week (average '+fa(Math.round(total/act*10)/10)+' parts on busy days).':'برنامه‌ی «'+(name||'بدون نام')+'» '+fa(total)+' پارت در '+fa(act)+' روز هفته دارد (میانگین '+fa(Math.round(total/act*10)/10)+' پارت در روزهای پر).')});
   var emp=[];cnt.forEach(function(x,i){if(!x)emp.push(TT_DAYS[i])});
-  if(emp.length&&emp.length<=3)it.push({ic:'clock',h:'روزهای خالی',t:emp.join('، ')+' خالی مانده است. اگر روز استراحت است خوب است، وگرنه یک یا دو پارت سبک بگذار تا پیوستگی حفظ شود.'});
+  if(emp.length&&emp.length<=3)it.push({ic:'clock',h:'روزهای خالی',t:(EN?emp.join(', ')+(emp.length>1?' are':' is')+' empty. That\'s fine if it\'s a rest day; otherwise add one or two light parts to keep consistency.':emp.join('، ')+' خالی مانده است. اگر روز استراحت است خوب است، وگرنه یک یا دو پارت سبک بگذار تا پیوستگی حفظ شود.')});
   else if(!emp.length&&cnt.every(function(x){return x>=R.length}))it.push({ic:'clock',h:'فشردگی',t:'همه‌ی خانه‌های هفته پر است. یک بازه‌ی آزاد برای مرور و استراحت بگذار تا برنامه عملی بماند.'});
   var ln=Object.keys(lessons).sort(function(x,y){return lessons[y]-lessons[x]});
   if(ln.length>=3){
     var mx=ln[0],mn=ln[ln.length-1];
-    if(lessons[mx]>=lessons[mn]*2.5&&lessons[mx]-lessons[mn]>=3)it.push({ic:'book',h:'تعادل درس‌ها',t:'«'+mx+'» '+fa(lessons[mx])+' پارت گرفته و «'+mn+'» فقط '+fa(lessons[mn])+'. اگر عمدی نیست، یک پارت از اولی به دومی بده.'});
-    else it.push({ic:'book',h:'تعادل درس‌ها',t:'توزیع درس‌ها نسبتاً متعادل است ('+fa(ln.length)+' درس مختلف).'});
+    if(lessons[mx]>=lessons[mn]*2.5&&lessons[mx]-lessons[mn]>=3)it.push({ic:'book',h:'تعادل درس‌ها',t:(EN?'"'+mx+'" has '+fa(lessons[mx])+' parts and "'+mn+'" only '+fa(lessons[mn])+'. If that\'s not intentional, move one part from the first to the second.':'«'+mx+'» '+fa(lessons[mx])+' پارت گرفته و «'+mn+'» فقط '+fa(lessons[mn])+'. اگر عمدی نیست، یک پارت از اولی به دومی بده.')});
+    else it.push({ic:'book',h:'تعادل درس‌ها',t:(EN?'Subjects are fairly evenly distributed ('+fa(ln.length)+' different subjects).':'توزیع درس‌ها نسبتاً متعادل است ('+fa(ln.length)+' درس مختلف).')});
   }
-  it.push(tests?{ic:'test',h:'تست در برنامه',t:fa(tests)+' پارت تست در برنامه داری. '+(tests<Math.max(2,total/6)?'برای کنکور کمی بیشتر کردنش خوب است.':'نسبتش مناسب است.')}:{ic:'test',h:'تست در برنامه',t:'هیچ پارت تستی در برنامه نیست. حداقل یک پارت تست بعد از درس‌های اصلی بگذار.'});
+  it.push(tests?{ic:'test',h:'تست در برنامه',t:(EN?'You have '+fa(tests)+' test parts in the plan. '+(tests<Math.max(2,total/6)?'For the Konkur, it would be good to have a few more.':'The ratio is appropriate.'):fa(tests)+' پارت تست در برنامه داری. '+(tests<Math.max(2,total/6)?'برای کنکور کمی بیشتر کردنش خوب است.':'نسبتش مناسب است.'))}:{ic:'test',h:'تست در برنامه',t:'هیچ پارت تستی در برنامه نیست. حداقل یک پارت تست بعد از درس‌های اصلی بگذار.'});
   try{
     var a=kcAnalyze(KC_N),sl=Object.keys(a.subj).filter(function(n){return a.subj[n].tc>=15&&a.subj[n].cr/a.subj[n].tc<.55}).sort(function(x,y){return a.subj[x].cr/a.subj[x].tc-a.subj[y].cr/a.subj[y].tc});
-    if(sl.length&&ln.length){var avg=total/ln.length,w=sl[0];if((lessons[w]||0)<avg)it.push({ic:'target',h:'درس ضعیف',t:'در گزارش‌ها «'+w+'» درصد پایینی دارد ولی در برنامه فقط '+fa(lessons[w]||0)+' پارت گرفته. پارت بیشتری برایش بگذار.'})}
+    if(sl.length&&ln.length){var avg=total/ln.length,w=sl[0];if((lessons[w]||0)<avg)it.push({ic:'target',h:'درس ضعیف',t:(EN?'In your reports "'+w+'" has a low percentage, but it only has '+fa(lessons[w]||0)+' parts in the plan. Give it more parts.':'در گزارش‌ها «'+w+'» درصد پایینی دارد ولی در برنامه فقط '+fa(lessons[w]||0)+' پارت گرفته. پارت بیشتری برایش بگذار.')})}
   }catch(e){}
   return {k:name||'',ts:Date.now(),it:it};
 }
@@ -5883,42 +6209,459 @@ function kcFbHTML(f,title,sub){
     return '<div class="kc-tip"><span class="kc-ti">'+icon(x.ic)+'</span><div><b>'+esc(x.h)+'</b><p>'+esc(x.t)+'</p></div></div>';
   }).join('')+'</div></div>';
 }
-var kcEl=null;
-function openCoach(){
-  if(kcEl)return;
-  var a=kcAnalyze(KC_N),adv=kcAdvice(a),pl=kcPlan(a),dis=kcD(),src=kcSrc();
+var kcPg=null;
+function kcBuild(){
+  var a=kcAnalyze(KC_N),deep=kcDeep(a),adv=deep.items.concat(kcAdvice(a)),pl=kcPlan(a),dis=kcD(),src=kcSrc();
   var st='<div class="hstats kk-gs"><div><b>'+kkShort(a.avg)+'</b><small>میانگین روزانه</small></div><div><b>'+(a.teDays?fa(Math.round(a.teAvg)):'—')+'</b><small>تست در روز</small></div><div><b>'+(a.acc!=null?fa(Math.round(a.acc))+'٪':'—')+'</b><small>درصد درست</small></div></div>'+
-    '<p class="hint kc-sub">بر اساس '+fa(a.N)+' روز اخیر · '+fa(a.act)+' روز مطالعه · '+fa(a.teDays)+' گزارش</p>';
-  var ah=adv.map(function(x,i){
+    '<p class="hint kc-sub">'+(EN?'Based on the last '+fa(a.N)+' days · '+fa(a.act)+' study days · '+fa(a.teDays)+' reports':'بر اساس '+fa(a.N)+' روز اخیر · '+fa(a.act)+' روز مطالعه · '+fa(a.teDays)+' گزارش')+'</p>';
+  function isRep(x){return /^(test|flag|edit)$/.test(x.ic)||/^(غلط|نزده)/.test(x.h||'')}
+  function tipH(x,i){
+    if(x.hide)return '';
     return '<div class="kc-tip"><span class="kc-ti">'+icon(x.ic)+'</span><div><b>'+x.h+'</b><p>'+x.t+'</p>'+(x.act?'<button type="button" class="tt-btn" data-kc="act" data-i="'+i+'">'+x.act.lb+'</button>':'')+'</div></div>';
-  }).join('');
+  }
+  var ahP=adv.map(function(x,i){return isRep(x)?'':tipH(x,i)}).join(''),ahR=adv.map(function(x,i){return isRep(x)?tipH(x,i):''}).join('');
   var fbh='',fr=dis.fr,fp=dis.fp;
   if(fr){var fd='';try{fd=F.long.format(parse(fr.k))}catch(e){}fbh+=kcFbHTML(fr,'نظر مربی درباره‌ی آخرین گزارش',fd)}
   if(fp)fbh+=kcFbHTML(fp,'نظر مربی درباره‌ی آخرین برنامه','«'+esc(fp.k||'بدون نام')+'»');
-  if(fbh)fbh+='<h3 class="kc-h2">تحلیل ۱۴ روز اخیر</h3>';
+  if(fbh&&ahR)fbh+='<h3 class="kc-h2">تحلیل ۱۴ روز اخیر</h3>';
   var ph='';
   if(!src)ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">برای اینکه مربی یک جدول شبیه خودت پیشنهاد بدهد، اول جدول هفتگی خودت را در «'+'کنکوریا'+'» بنویس و ذخیره کن.</p><button type="button" class="tt-btn pri" data-kc="tt">باز کردن جدول</button></div>';
   else if(!pl)ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">جدول تو فعلاً درس‌های قابل تشخیص ندارد. نام درس‌ها را در خانه‌ها بنویس (مثلاً «ریاضی») تا مربی بتواند پیشنهاد بدهد.</p></div>';
   else if(pl.none)ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">جدولت تقریباً پر و متعادل است و چیزی برای اضافه کردن پیدا نشد. 👌</p></div>';
   else{
     var rej=dis.dis===pl.sig;
-    ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">خانه‌های خودت دست‌نخورده می‌مانند. خانه‌های رنگ‌شده با خط‌چین پیشنهادی هستند: '+[pl.study?fa(pl.study)+' پارت مطالعه':'',pl.tests?fa(pl.tests)+' پارت تست':''].filter(Boolean).join(' و ')+' اضافه شد و درس‌ها بر اساس تعداد، درصد تست و زمان مطالعه‌ات متعادل شدند.</p>'+
+    ph='<div class="kc-plan"><h3>جدول پیشنهادی</h3><p class="hint">خانه‌های خودت دست‌نخورده می‌مانند. خانه‌های رنگ‌شده با خط‌چین پیشنهادی هستند: '+[pl.study?fa(pl.study)+' پارت مطالعه':'',pl.tests?fa(pl.tests)+' پارت تست':''].filter(Boolean).join(EN?' and ':' و ')+' اضافه شد و درس‌ها بر اساس تعداد، درصد تست و زمان مطالعه‌ات متعادل شدند.</p>'+
       (rej?'<p class="kc-rej">این پیشنهاد را رد کرده‌ای.</p><div class="tt-eb"><button type="button" class="tt-btn" data-kc="again">نمایش دوباره</button></div>'
         :kcPlanHTML(pl)+'<div class="tt-eb"><button type="button" class="tt-btn pri" data-kc="save">ذخیره‌ی جدول پیشنهادی</button><button type="button" class="tt-btn" data-kc="rej">رد کردن</button></div>')+'</div>';
   }
-  var sw=ttSheetWrap('<div class="sheet-top"><span></span><h2>مربی هوشمند</h2><button type="button" data-kc="close">بستن</button></div><div class="kc-body">'+st+fbh+'<div class="kc-tips">'+ah+'</div>'+ph+'</div>','مربی هوشمند');
-  kcEl=sw;
-  var w=sw.w,orig=sw.close;
-  sw.close=function(){kcEl=null;orig()};
-  w.querySelector('.dim').addEventListener('click',function(){kcEl=null});
-  w.addEventListener('click',function(e){
-    var b=e.target.closest('[data-kc]');if(!b)return;var k=b.dataset.kc;
+  kcPg={a:a,adv:adv,pl:pl};
+  var repGo='<div class="kc-plan"><h3>گزارش‌کار شبانه</h3><p class="hint">هر شب بعد از مطالعه، گزارش کار روزانه‌ات را بساز تا مربی تست‌ها و درصدهایت را تحلیل کند.</p><button type="button" class="tt-btn pri" data-kc="rep">رفتن به گزارش‌ها</button></div>';
+  return {st:st,all:'<div class="kc-body">'+fbh+'<div class="kc-tips">'+ahP+ahR+'</div>'+deep.focusHTML+ph+'</div>',plan:'<div class="kc-body"><div class="kc-tips">'+ahP+'</div>'+deep.focusHTML+ph+'</div>',rep:'<div class="kc-body">'+fbh+(ahR?'<div class="kc-tips">'+ahR+'</div>':'')+repGo+'</div>'};
+}
+/* motivation: a message built from the student's own numbers + a daily line */
+var KC_Q=['کنکور مسابقه‌ی سرعت نیست؛ مسابقه‌ی ادامه دادن است. امروز فقط یک پارت را کامل کن.','هر تستی که امروز می‌زنی، یک سؤال کمتر از آزمون اصلی است که تو را غافلگیر می‌کند.','انگیزه گاهی می‌آید و گاهی نه؛ عادت همیشه می‌ماند. ساعت مطالعه‌ات را ثابت نگه دار.','اگر امروز سخت بود، عالی است: دقیقاً همین روزها فاصله‌ی تو را با بقیه زیاد می‌کنند.','لازم نیست همه‌چیز را همین امروز بدانی؛ فقط باید از دیروزت جلوتر باشی.','غلط‌های امروز، درست‌های روز کنکور هستند. از هر غلط یک نکته بنویس.','یک جلسه‌ی ۲۵ دقیقه‌ای را شروع کن. شروع کردن سخت‌ترین بخش کار است.','استراحت جزئی از برنامه است نه دشمنش. خوب بخواب تا خوب یاد بگیری.','خودت را با دیگران مقایسه نکن؛ نمودار خودت را با هفته‌ی قبل خودت مقایسه کن.','پشتکار یعنی در روزهایی که حال نداری هم کمی بخوانی.','هدف بزرگ را به کارهای کوچک روزانه بشکن؛ کوه را قدم‌به‌قدم بالا می‌روند.','تو تا اینجا آمده‌ای؛ همین نشان می‌دهد می‌توانی ادامه بدهی.','هر روز که برنامه را انجام می‌دهی، به خودت ثابت می‌کنی که قولت قابل اعتماد است.','اشتباه کردن بخشی از یادگیری است. مهم این است که دفعه‌ی بعد همان اشتباه را تکرار نکنی.'];
+function kcMotHTML(a){
+  var o=[],st=0;try{st=kkStreak()}catch(e){}
+  if(st>=3)o.push({ic:'star',h:fa(st)+' روز پیاپی!',t:''+fa(st)+' روز است که پشت‌سرهم مطالعه ثبت کرده‌ای. این پیوستگی از ساعت‌های طولانی مهم‌تر است؛ زنجیره را نشکن.'});
+  if(a.w2>0&&a.w1>a.w2*1.05)o.push({ic:'flag',h:'روند رو به بالا',t:'این هفته بیشتر از هفته‌ی قبل مطالعه کرده‌ای. همین روند را ادامه بده و جلوی خودت را نگیر.'});
+  else if(a.w2>0&&a.w1<a.w2*.9)o.push({ic:'bulb',h:'هنوز دیر نشده',t:'این هفته کمی کمتر از هفته‌ی قبل خوانده‌ای؛ اشکالی ندارد. امروز با یک جلسه‌ی کوتاه شروع کن و دوباره به ریتم برگرد.'});
+  if(a.acc!=null&&a.tc>=20&&a.acc>=60)o.push({ic:'target',h:'درصدهایت خوب است',t:'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. تلاش‌هایت نتیجه داده؛ حالا دنبال درس‌های ضعیف‌تر برو.'});
+  if(!o.length)o.push({ic:'bulb',h:'امروز شروع کن',t:'هر مسیری با یک قدم شروع می‌شود. امروز یک جلسه‌ی مطالعه ثبت کن تا مربی بتواند برایت پیام‌های شخصی‌تر بنویسد.'});
+  var h=o.map(function(x){return '<div class="kc-tip"><span class="kc-ti">'+icon(x.ic)+'</span><div><b>'+x.h+'</b><p>'+x.t+'</p></div></div>'}).join('');
+  var d=new Date(),i=((ui.kcq==null?Math.floor(d.getTime()/864e5):ui.kcq)%KC_Q.length+KC_Q.length)%KC_Q.length;
+  return '<div class="kc-body"><div class="kc-quote glass"><p>«'+KC_Q[i]+'»</p><button type="button" class="tt-btn" data-kc="q">پیام بعدی</button></div><div class="kc-tips">'+h+'</div></div>';
+}
+/* the smart coach is a normal page (like rank estimate), not a pop-up window */
+function viewCoach(){
+  var b=kcBuild();
+  return head('از گزارش‌ها و ساعت‌هایت','مربی هوشمند',{back:1,backAct:'kcBack',backTxt:'کنکوریا'})+'<button type="button" class="wrcard glass kc-big" data-act="kcAdv"><span class="ib" style="background:linear-gradient(145deg,#34d399,#0f9d74)">'+icon('chat')+'</span><div><b>من و مشاور</b><small>گفتگو با مشاور · برنامه مطالعاتی · گزارش‌کار شبانه · انگیزشی</small></div></button>'+
+    '<div class="kc-body">'+b.st+'</div>'+b.all;
+}
+var KC_TOP=[['plan','📚','برنامه مطالعاتی','ب','#ef5b7a'],['rep','📝','گزارش‌کار شبانه','گ','#3b9bd9'],['mot','⚡','انگیزشی','ا','#f2a93b']];
+function kcStrip(t,n){t=String(t||'').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n)+'…':t}
+function kcAsk(sec){return '<div class="kc-ad"><img class="kc-av kc-img" src="img/app-icon.webp" alt="" width="28" height="28" draggable="false"><b>Ario</b></div>'}
+function kcPrev(sec,a){
+  var lm=kcLast(sec);if(lm)return (lm.r==='u'?'شما: ':'')+kcStrip(lm.t,80);
+  var adv=kcPg.adv||[],isR=function(x){return /^(test|flag|edit)$/.test(x.ic)||/^(غلط|نزده)/.test(x.h||'')},x;
+  if(sec==='plan'){x=adv.filter(function(y){return !y.hide&&!isR(y)})[0];return x?x.h+': '+kcStrip(x.t,70):'برنامه‌ات را با هم بررسی کنیم'}
+  if(sec==='rep'){var f=kcD().fr;if(f&&f.it[0])return f.it[0].h+': '+kcStrip(f.it[0].t,70);x=adv.filter(function(y){return !y.hide&&isR(y)})[0];return x?x.h+': '+kcStrip(x.t,70):'گزارش امشبت را بنویس تا تحلیل کنم'}
+  return kcStrip(KC_Q[Math.floor(Date.now()/864e5)%KC_Q.length],80);
+}
+function kcLast(sec){var c=kcD().ch[sec];return c&&c.length?c[c.length-1]:null}
+function kcxTime(ts){try{return new Date(ts).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'})}catch(e){return ''}}
+function kcxDay(ts){
+  var d=new Date(ts||Date.now()),n=new Date();
+  if(d.toDateString()===n.toDateString())return 'امروز';
+  try{return new Intl.DateTimeFormat('fa-IR',{day:'numeric',month:'long'}).format(d)}catch(e){return ''}
+}
+function kcxRepCard(m){
+  var r=rpD()[m.k],dl='';try{dl=F.long.format(parse(m.k))}catch(e){}
+  var sum='';
+  if(r){
+    sum='<div class="kcx-rs">'+(r.sp?'<span>'+icon('clock')+kkFmt(r.sp)+'</span>':'')+'<span>'+icon('test')+fa(r.te)+' تست</span>'+(r.tc?'<span>'+fa(Math.round(r.cr/r.tc*100))+'٪ درست</span>':'')+'</div>';
+  }
+  return '<div class="kcx-m u kcx-rep" data-k="'+m.k+'"><button type="button" class="kcx-rh" data-rep="tg" aria-expanded="false"><span class="kcx-ri">'+icon('edit')+'</span><span class="kcx-rt"><b>گزارش‌کار روزانه</b><small>'+esc(dl)+'</small></span><span class="kcx-rc">'+icon('chev')+'</span></button>'+sum+
+    (r&&r.t?'<pre class="kcx-rf" dir="rtl">'+esc(r.t)+'</pre>':'<p class="kcx-rx">این گزارش دیگر ذخیره نشده است.</p>')+'<time>'+kcxTime(m.ts)+'</time></div>';
+}
+function kcxRow(h){return '<div class="kcx-row"><span class="kcx-ck"></span>'+h+'</div>'}
+function kcxChip(h,m){return m.re?h.replace('class="kcx-m ','class="kcx-m hre ').replace(/<\/div>$/,'<span class="kcx-re">'+m.re+'</span></div>'):h}
+function kcxMsg(m){if(m.k)return kcxRow(kcxChip(kcxRepCard(m),m));return kcxRow(kcxChip('<div class="kcx-m '+(m.r==='u'?'u':'a')+'"><p>'+esc(m.t).replace(/\n/g,'<br>')+'</p><time>'+kcxTime(m.ts)+'</time></div>',m))}
+/* the report tray: one small box per saved report, showing only its date */
+function kcxTray(){
+  var D=rpD(),ks=Object.keys(D).sort().reverse().slice(0,60);
+  if(!ks.length)return '<p class="kcx-tn">هنوز گزارشی ذخیره نشده. اول از «گزارش‌ها» یک گزارش‌کار بساز.</p>';
+  return '<div class="kcx-tr" role="listbox" aria-label="گزارش‌ها">'+ks.map(function(k,i){
+    var d=parse(k),dd='',mm='';
+    try{dd=new Intl.DateTimeFormat('fa-IR',{day:'numeric'}).format(d);mm=new Intl.DateTimeFormat('fa-IR',{month:'long'}).format(d)}catch(e){dd=k}
+    return '<button type="button" class="kcx-rbx" role="option" style="--i:'+i+'" data-rk="'+k+'" aria-label="'+esc(F.long.format(d))+'"><b>'+dd+'</b><small>'+mm+'</small></button>';
+  }).join('')+'</div>';
+}
+/* digits + "h/min" text -> minutes ("۱ ساعت و ۲۰ دقیقه" -> 80) */
+function kcMinTxt(t){
+  var s=String(t||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)});
+  var h=/(\d+(?:[.٫]\d+)?)\s*ساعت/.exec(s),m=/(\d+)\s*دقیقه/.exec(s);
+  if(!h&&!m){var n=/^\s*(\d+)\s*$/.exec(s);return n?+n[1]:null}
+  return (h?parseFloat(h[1].replace('٫','.'))*60:0)+(m?+m[1]:0);
+}
+function kcClockMin(t){
+  var s=String(t||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)});
+  var m=/(\d{1,2})\s*[:٫.]\s*(\d{2})/.exec(s);return m?(+m[1])*60+(+m[2]):null;
+}
+function kcCut(lines,n){var t=lines.join('\n');if(t.length<=n)return t;while(lines.length>1&&lines.join('\n').length>n)lines.splice(lines.length-1,1);return lines.join('\n')}
+/* a full read of one report: what went well, what to fix, and a concrete plan for tomorrow (3 chat messages) */
+function kcRepAnalysis(k,a){
+  var r=rpD()[k];if(!r)return ['این گزارش دیگر ذخیره نشده؛ یکی از گزارش‌های دیگر را بفرست.'];
+  var m={parts:[]};try{m=rpParse(r.t)}catch(e){}
+  var goal=kkD().goal||0,sp=r.sp||0,te=r.te||0,avg=a&&a.act>=3&&a.avg>0?a.avg:0,acc=r.tc>=10?r.cr/r.tc*100:null;
+  var good=[],bad=[],plan=[];
+  /* --- study hours --- */
+  var tgt=0;
+  if(!sp){bad.push('ساعت مطالعه‌ای در گزارش ثبت نشده؛ بدون آن نمی‌توانم روند را دقیق بسنجم.');tgt=Math.round((avg||120)/15)*15}
+  else{
+    var ref=goal&&goal>sp?goal:0;
+    if(goal&&sp>=goal)good.push('به هدف روزانه‌ات ('+kkFmt(goal)+') رسیدی.');
+    else if(goal)bad.push('مطالعه‌ات '+kkFmt(goal-sp)+' کمتر از هدفت ('+kkFmt(goal)+') بود.');
+    if(avg){if(sp>=avg*1.1)good.push('مطالعه‌ات از میانگین ۱۴ روز اخیرت ('+kkFmt(avg)+') بیشتر بود.');else if(sp<avg*.8)bad.push('مطالعه‌ات از میانگین معمولت ('+kkFmt(avg)+') کمتر بود.')}
+    tgt=sp<(avg||0)*.8?avg:sp+Math.min(45,Math.max(20,sp*.12));
+    if(ref&&tgt>ref)tgt=Math.max(sp+15,ref);
+    tgt=Math.round(tgt/15)*15;
+    if(tgt<=sp)tgt=sp+15;
+  }
+  /* --- tests --- */
+  var tt=0;
+  if(!te){bad.push('تستی ثبت نشده؛ بدون تست، مطالعه محک نمی‌خورد.');tt=20}
+  else{
+    if(acc!=null){
+      if(acc>=75)good.push('درصد تست‌هایت عالی بود ('+fa(Math.round(acc))+'٪).');
+      else if(acc<50)bad.push('درصد درست تست‌ها پایین بود ('+fa(Math.round(acc))+'٪).');
+    }else bad.push('درصد تست‌ها را ننوشته‌ای، پس تحلیل کیفیت ناقص است.');
+    if(sp>=30){var ph=te/(sp/60);if(ph<8)bad.push('سرعت تستت کم است (حدود '+fa(Math.round(ph))+' تست در ساعت مطالعه).');else if(ph>=15)good.push('ریتم تست‌زنی‌ات خوب است (حدود '+fa(Math.round(ph))+' تست در ساعت).')}
+    tt=acc!=null&&acc<50?te:Math.round(te*(acc!=null&&acc>=75?1.2:1.12)/5)*5;
+    if(tt<=te)tt=te+5;
+  }
+  /* --- per-lesson --- */
+  var ps=[],noPc=0,noAn=[];
+  m.parts.forEach(function(p){
+    var pc=kcPct(p.pc),t=kkNum(p.te||''),l=kcLesson(p.n)||(p.n||'').trim().slice(0,24);
+    if(t>=5&&pc==null)noPc++;
+    if(pc!=null&&t>=5){ps.push({l:l,pc:pc,t:t});if(pc<50&&!(p.an||'').trim())noAn.push(l||p.t)}
+  });
+  var lo=null,hi=null;
+  if(ps.length>=2){ps.sort(function(x,y){return x.pc-y.pc});lo=ps[0];hi=ps[ps.length-1];if(lo.pc<hi.pc){if(hi.pc>=60&&hi.l)good.push('بهترین نتیجه در «'+hi.l+'» ('+fa(Math.round(hi.pc))+'٪) بود.');if(lo.l)bad.push('ضعیف‌ترین در «'+lo.l+'» ('+fa(Math.round(lo.pc))+'٪) بود.')}else lo=null}
+  else if(ps.length===1&&ps[0].pc<50&&ps[0].l){lo=ps[0];bad.push('نتیجه‌ی «'+lo.l+'» ('+fa(Math.round(lo.pc))+'٪) پایین بود.')}
+  if(noAn.length)bad.push('برای '+(noAn.length>1?'چند پارت':'«'+noAn[0]+'»')+' که درصدش پایین بود تحلیل غلط‌ها را ننوشته‌ای.');
+  var timed=m.parts.some(function(p){return kkNum(p.tt||'')>0});
+  /* --- sleep / phone / nap --- */
+  var sl=kcClockMin(m.sl),wk=kcClockMin(m.wk),sh=null;
+  if(sl!=null&&wk!=null){sh=wk-sl;if(sh<=0)sh+=1440;if(sh>16*60)sh=null}
+  if(sh!=null){if(sh<6*60)bad.push('خواب دیشبت حدود '+kkFmt(sh)+' بود که برای تمرکز کم است.');else if(sh>=7*60&&sh<=9*60)good.push('خواب کافی داشتی ('+kkFmt(sh)+').')}
+  var phm=kcMinTxt(m.ph);
+  if(phm!=null){if(phm>=150)bad.push('استفاده از گوشی '+kkFmt(phm)+' بوده و زمان زیادی می‌گیرد.');else if(phm<=60&&phm>0)good.push('مصرف گوشی‌ات کم بود ('+kkFmt(phm)+').')}
+  var nap=kcMinTxt(m.nap);
+  if(nap!=null&&nap>=120)bad.push('خواب طول روز '+kkFmt(nap)+' بوده و می‌تواند ساعت‌های مفیدت را بخورد.');
+  /* --- message 1: analysis --- */
+  var m1=['📊 تحلیل گزارش'];
+  m1.push(sp?'مطالعه '+kkFmt(sp)+(te?' · '+fa(te)+' تست':'')+(acc!=null?' · '+fa(Math.round(acc))+'٪ درست':''):(te?fa(te)+' تست':'اطلاعات اصلی کم است'));
+  if(good.length){m1.push('','✅ نقاط قوت:');good.slice(0,4).forEach(function(x){m1.push('• '+x)})}
+  if(bad.length){m1.push('','⚠️ نقاط ضعف:');bad.slice(0,5).forEach(function(x){m1.push('• '+x)})}
+  if(!good.length&&!bad.length)m1.push('','گزارش متعادل است؛ با اضافه کردن جزئیات بیشتر دقیق‌تر تحلیلش می‌کنم.');
+  /* --- message 2: how to improve --- */
+  var m2=['🎯 راهکار برای بهتر شدن'];
+  m2.push('• ساعت مطالعه: فردا '+kkFmt(tgt)+' هدف بگذار'+(sp?' ('+kkFmt(tgt-sp)+' بیشتر)':'')+'؛ افزایش را تدریجی نگه دار و به جلسه‌های ۴۵ دقیقه‌ای با ۱۰ دقیقه استراحت تقسیم کن.');
+  if(acc!=null&&acc<50)m2.push('• تست: قبل از زیاد کردن تعداد، همین '+fa(te)+' تست را کامل تحلیل کن؛ هر غلط را یادداشت و فردایش دوباره حل کن.');
+  else m2.push('• تست: فردا حدود '+fa(tt)+' تست بزن'+(te?' (حدود '+fa(tt-te)+' بیشتر)':'')+(acc!=null&&acc>=75?' و بخشی را سخت‌تر انتخاب کن.':'؛ بعد از هر پارت مطالعه چند تست موضوعی بزن.'));
+  if(!timed&&te>=20)m2.push('• هفته‌ای ۲ بار تست زماندار بزن تا سرعتت بالا برود.');
+  if(lo&&lo.l)m2.push('• درس ضعیف «'+lo.l+'»: یک مرور ۳۰ دقیقه‌ای مبحث + ۲۰ تست موضوعی با تحلیل غلط‌ها.');
+  if(noPc)m2.push('• درصد هر پارت را حتماً بنویس تا ضعف هر درس پیدا شود.');
+  if(m.rem&&m.rem.trim()&&!/^(ندارم|نداشتم|ندارد|هیچ|-|—|نه)/.test(m.rem.trim()))m2.push('• پارت‌های باقی‌مانده («'+kcStrip(m.rem,50)+'») را فردا اول وقت بگذار.');
+  if(m.ch&&m.ch.trim()){
+    var c=m.ch;
+    m2.push('• چالش امروزت: '+(/گوشی|اینستا|شبکه|تلگرام|یوتیوب/.test(c)?'گوشی را در حالت پرواز و دور از میز بگذار.':/تمرکز|حواس|پرت/.test(c)?'از روش ۲۵ دقیقه تمرکز + ۵ دقیقه استراحت استفاده کن.':/خواب|خسته|بیدار|کسل/.test(c)?'ساعت خواب و بیداری را ثابت کن و مطالعه‌ی سنگین را صبح بگذار.':/وقت|زمان|برنامه|عقب/.test(c)?'برنامه‌ی فردا را از امشب در جدول بنویس و هر پارت را زمان‌دار کن.':'برای آن یک راه‌حل مشخص بنویس و فردا امتحانش کن.'));
+  }
+  /* --- message 3: tomorrow in one glance --- */
+  var m3=['📌 برنامه‌ی پیشنهادی فردا','• مطالعه: '+kkFmt(tgt),'• تست: '+fa(tt)+' تست'+(acc!=null&&acc<50?' (همراه با تحلیل کامل غلط‌ها)':''),lo&&lo.l?'• تمرکز ویژه: '+lo.l:'• یک مرور کوتاه روی بدترین پارت امروز','• شب: گزارش‌کار را کامل بنویس (با درصد هر پارت) تا دوباره تحلیل کنم 💪'];
+  return [kcCut(m1,590),kcCut(m2,590),kcCut(m3,590)];
+}
+/* the advisor's answers: rules over the student's own numbers */
+function kcReply(sec,t,a){
+  try{KTE.fa=fa;KTE.fmt=kkFmt;KTE.kcD=kcD;KTE.persist=persist;KTE.lesson=kcLesson;KTE.q=function(){return KC_Q};var kr=kcThink(sec,t,a);if(kr)return kr}catch(e){}
+  var q=t.replace(/\u200c/g,'').replace(/ي/g,'ی').replace(/ك/g,'ک'),has=function(r){return r.test(q)};
+  var sub=Object.keys(a.mins||{}).filter(function(n){return n&&n!=='آزمون'&&a.mins[n]>0}).sort(function(x,y){return a.mins[x]-a.mins[y]});
+  var none=a.act<3&&a.teDays<2;
+  if(has(/ممنون|مرسی|تشکر|دمت/))return 'خواهش می‌کنم 🌱 هر وقت خواستی دوباره بپرس.';
+  if(sec==='mot'){
+    if(has(/خسته|نمیتونم|بی‌?حال|بیحال|حوصله|کلافه|دلسرد|ناامید/))return 'خستگی یعنی تلاش کرده‌ای. امروز هدف را کوچک کن: فقط یک جلسه‌ی ۲۵ دقیقه‌ای، بعد ۵ دقیقه استراحت. بعد از آن خودت می‌فهمی ادامه بدهی یا نه. 💪';
+    if(has(/استرس|ترس|نگران|اضطراب/))return 'استرس کمی طبیعی است و نشان می‌دهد برایت مهم است. نفس عمیق بکش و فقط به کار همین ساعت فکر کن؛ برنامه‌ی کوچک و پیوسته از نگرانی بزرگ جلوتر است. 🌿';
+    if(has(/خواب|بیخواب/))return 'خواب کافی بخشی از درس خواندن است. سعی کن ساعت خواب و بیداری ثابت باشد؛ مرورِ شب‌های قبل از خواب هم بهتر در ذهن می‌ماند.';
+    var i=Math.floor(Math.random()*KC_Q.length);return '«'+KC_Q[i]+'»';
+  }
+  if(none)return 'هنوز داده‌ی کافی ندارم. چند روز ساعت مطالعه را ثبت کن و بعد از هر روز «گزارش کار روزانه» بساز؛ آن‌وقت می‌توانم دقیق جواب بدهم. 📊';
+  if(has(/ساعت|چقدر|زمان|مدت/))return 'میانگین مطالعه‌ات در '+fa(a.N)+' روز اخیر روزی '+kkFmt(a.avg)+' بوده'+(a.w2>0?(a.w1>a.w2*1.05?' و این هفته بیشتر شده است 👏':(a.w1<a.w2*.9?' و این هفته کمی کمتر شده است.':'.')):'.')+' پیشنهادم افزایش تدریجی حدود ۱۵٪ است، نه جهش ناگهانی.';
+  if(has(/درصد|غلط|نزده/))return a.acc!=null?'درصد درست تست‌هایت '+fa(Math.round(a.acc))+'٪ است. '+(a.acc<50?'قبل از زیاد کردن تعداد، همه‌ی غلط‌ها و نزده‌ها را تحلیل کن.':a.acc>=75?'خوب است؛ وقت تست زماندار و سخت‌تر است.':'برای بالا بردنش، هر غلط را یادداشت و فردایش دوباره حل کن.'):'هنوز درصدی در گزارش‌هایت ثبت نشده؛ بعد از هر پارت تعداد تست و درصد را بنویس.';
+  if(has(/تست/))return a.teDays?'در روزهای گزارش‌دار میانگین '+fa(Math.round(a.teAvg))+' تست زده‌ای'+(a.perHour!=null?' (حدود '+fa(Math.round(a.perHour))+' تست در هر ساعت مطالعه)':'')+'. بعد از هر مبحث تست موضوعی بزن و غلط‌ها را مرور کن.':'تستی در گزارش‌هایت ثبت نشده؛ تعداد و درصد را بنویس تا تحلیل کنم.';
+  if(has(/ضعیف|درس|کم/)){
+    var sl=Object.keys(a.subj||{}).filter(function(n){return a.subj[n].tc>=15}).sort(function(x,y){return a.subj[x].cr/a.subj[x].tc-a.subj[y].cr/a.subj[y].tc});
+    if(sl.length)return 'ضعیف‌ترین درس تو در تست‌ها «'+sl[0]+'» است ('+fa(Math.round(a.subj[sl[0]].cr/a.subj[sl[0]].tc*100))+'٪). هفته‌ای دو جلسه‌ی مرور مبحث و ۲۰ تست موضوعی برایش بگذار.';
+    if(sub.length>=3)return '«'+sub[0]+'» کمترین زمان را گرفته ('+kkFmt(a.mins[sub[0]])+'). یک جلسه‌ی ثابت هفتگی برایش بگذار.';
+  }
+  if(has(/گزارش/))return a.recent?'گزارش‌هایت به‌روز است. هر شب بعد از مطالعه یکی بساز تا روند درصد و تستت را دقیق‌تر ببینم.':'در ۷ روز اخیر گزارشی ثبت نکرده‌ای؛ از تب «گزارش‌ها» در کنکوریا گزارش امشب را بساز تا تحلیل کنم.';
+  if(has(/جدول|برنامه/))return 'پیشنهادهای برنامه و جدول پیشنهادی را بالای همین گفتگو گذاشته‌ام. اگر جدول هفتگی‌ات را در کنکوریا ذخیره کرده باشی، جدولی شبیه خودت می‌سازم.';
+  return 'میانگین مطالعه‌ات روزی '+kkFmt(a.avg)+(a.teDays?' و '+fa(Math.round(a.teAvg))+' تست در روز':'')+' است. می‌توانی درباره‌ی ساعت مطالعه، تست‌ها، درصد، درس ضعیف یا گزارش‌ها بپرسی. 🙂';
+}
+function kcxInit(){
+  var root=document.querySelector('.kcx');if(!root)return;
+  var sec=root.dataset.sec,L=document.getElementById('kcxL'),th=document.getElementById('kcxTh'),F=document.getElementById('kcxF'),T=document.getElementById('kcxT'),N=document.getElementById('kcxN');
+  function down(sm){try{L.scrollTo({top:L.scrollHeight,behavior:sm?'smooth':'auto'})}catch(e){L.scrollTop=L.scrollHeight}}
+  function fit(){T.style.height='auto';T.style.height=Math.min(120,T.scrollHeight)+'px'}
+  function add(r,t,k){
+    var m={r:r,t:t,ts:Date.now()},c=kcD().ch[sec];if(k)m.k=k;c.push(m);if(c.length>150)c.splice(0,c.length-150);persist();
+    if(!document.body.contains(th))return;
+    var dk=new Date(m.ts).toDateString(),h='';
+    var days=th.querySelectorAll('.kcx-day');if(!days.length||days[days.length-1].dataset.d!==dk)h+='<div class="kcx-day" data-d="'+dk+'"><span>'+kcxDay(m.ts)+'</span></div>';
+    var tp=th.querySelector('.kcx-typing');
+    var tmp=document.createElement('div');tmp.innerHTML=h+kcxMsg(m);
+    while(tmp.firstChild)th.insertBefore(tmp.firstChild,tp||null);
+    if(N)N.textContent=(N.dataset.p||'')+fa(c.length)+' پیام';
+    down(true);
+  }
+  /* the advisor answers: three dots glide in, wait a little, fade away, then the answer blooms in the same spot */
+  function reply(fn,wait,cb){
+    var ty=document.createElement('div');ty.className='kcx-m a kcx-typing';ty.setAttribute('aria-label','Ario در حال نوشتن است');ty.innerHTML='<p><i></i><i></i><i></i></p>';
+    setTimeout(function(){if(document.body.contains(th)){th.appendChild(ty);down(true)}},280);
+    setTimeout(function(){
+      if(!document.body.contains(ty)){ty.remove();add('a',fn());if(cb)cb();return}
+      ty.classList.add('out');
+      setTimeout(function(){ty.remove();add('a',fn());if(cb)setTimeout(cb,350)},260);
+    },wait);
+  }
+  function send(){
+    var t=T.value.trim();if(!t)return;
+    var a=kcAnalyze(KC_N);
+    add('u',t);T.value='';fit();
+    reply(function(){return kcReply(sec,t,a)},1100+Math.min(900,t.length*14));
+  }
+  var E=document.getElementById('kcxE'),EM=document.getElementById('kcxEm');
+  function tray(open){
+    E.classList.toggle('on',open);E.setAttribute('aria-expanded',open?'true':'false');EM.setAttribute('aria-hidden',open?'false':'true');
+    if(open){EM.innerHTML=kcxTray();void EM.offsetWidth;requestAnimationFrame(function(){EM.classList.add('open')});setTimeout(function(){down(true)},380)}
+    else EM.classList.remove('open');
+  }
+  function sendRep(k){
+    var r=rpD()[k];if(!r)return;
+    var a=kcAnalyze(KC_N),dl='';try{dl=F.long.format(parse(k))}catch(e){}
+    add('u','گزارش‌کار روزانه · '+dl,k);tray(false);
+    var ms=kcRepAnalysis(k,a);
+    reply(function(){return ms[0]},1500,function(){if(ms[1])reply(function(){return ms[1]},1400,function(){if(ms[2])reply(function(){return ms[2]},1200)})});
+  }
+  E.addEventListener('click',function(){tray(!EM.classList.contains('open'))});
+  EM.addEventListener('click',function(e){var b=e.target.closest('[data-rk]');if(b)sendRep(b.dataset.rk)});
+  L.addEventListener('click',function(e){
+    var h=e.target.closest('[data-rep="tg"]');if(!h)return;
+    var c=h.closest('.kcx-rep'),o=!c.classList.contains('open');c.classList.toggle('open',o);h.setAttribute('aria-expanded',o?'true':'false');
+  });
+  F.addEventListener('submit',function(e){e.preventDefault();send();T.focus({preventScroll:true})});
+  T.addEventListener('input',fit);
+  T.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+  kcxSel(root,L,th);
+  requestAnimationFrame(function(){down(false)});
+}
+var SVREPLY='<svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="M9.5 7 4.5 12l5 5"/><path d="M4.5 12H14a5.5 5.5 0 0 1 5.5 5.5V19"/></svg>',SVFWD='<svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="M14.5 7l5 5-5 5"/><path d="M19.5 12H10A5.5 5.5 0 0 0 4.5 17.5V19"/></svg>';
+/* long-press a chat message -> selection mode (copy / delete), Telegram style */
+function kcxSel(root,L,th){
+  var sec=root.dataset.sec,Sc=document.getElementById('kcxSc'),tm=null,sx=0,sy=0,sup=false;
+  function rows(){return [].slice.call(th.querySelectorAll('.kcx-row:not(.gone)'))}
+  function on(){return root.classList.contains('kcx-sel')}
+  function exit(){root.classList.remove('kcx-sel');rows().forEach(function(r){r.classList.remove('sel')})}
+  function upd(){var n=th.querySelectorAll('.kcx-row.sel').length;if(!n){exit();return}if(Sc)Sc.textContent=fa(n)+' انتخاب';var rb=root.querySelector('[data-sel=reply]');if(rb)rb.disabled=n!==1}
+  function picked(){
+    var c=kcD().ch[sec]||[],rs=rows(),off=c.length-rs.length,o=[];
+    rs.forEach(function(r,i){if(r.classList.contains('sel')&&c[off+i])o.push(c[off+i])});
+    return o;
+  }
+  function stop(){if(tm){clearTimeout(tm);tm=null}}
+  th.addEventListener('pointerdown',function(e){
+    if(e.button>0||on())return;
+    var r=e.target.closest('.kcx-row');if(!r)return;
+    sx=e.clientX;sy=e.clientY;stop();
+    tm=setTimeout(function(){
+      tm=null;sup=true;
+      try{window.getSelection().removeAllRanges()}catch(er){}
+      root.classList.add('kcx-sel');r.classList.add('sel');upd();
+      try{navigator.vibrate&&navigator.vibrate(12)}catch(er){}
+    },420);
+  });
+  th.addEventListener('pointermove',function(e){if(tm&&(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10))stop()});
+  ['pointerup','pointercancel','pointerleave'].forEach(function(n){th.addEventListener(n,function(){stop();if(sup)setTimeout(function(){sup=false},350)})});
+  L.addEventListener('scroll',stop,{passive:true});
+  th.addEventListener('contextmenu',function(e){if(e.target.closest('.kcx-row'))e.preventDefault()});
+  th.addEventListener('click',function(e){
+    if(sup){sup=false;e.stopPropagation();e.preventDefault();return}
+    var r=e.target.closest('.kcx-row');
+    if(!on()){
+      if(!r||e.target.closest('button,a,pre,input,textarea'))return;
+      e.stopPropagation();e.preventDefault();menu(r);return;
+    }
+    e.stopPropagation();e.preventDefault();
+    if(r){r.classList.toggle('sel');upd()}
+  },true);
+  function copyTxt(t){
+    function ok(){toast('کپی شد',null,null,'ok')}
+    function fb(){
+      var x=document.createElement('textarea');x.value=t;x.style.cssText='position:fixed;opacity:0;top:0';document.body.appendChild(x);x.select();
+      try{document.execCommand('copy');ok()}catch(er){}x.remove();
+    }
+    try{navigator.clipboard.writeText(t).then(ok,fb)}catch(er){fb()}
+  }
+  function textOf(m){var r=m.k&&rpD()[m.k];return m.k?(r&&r.t||''):(m.t||'')}
+  function quote(m){
+    var T=document.getElementById('kcxT');if(!T)return;
+    var q=textOf(m).replace(/\s+/g,' ').trim();
+    T.value='«'+(q.length>60?q.slice(0,60)+'…':q)+'»\n';T.dispatchEvent(new Event('input'));T.focus();
+  }
+  function share(a){
+    var t=a.filter(Boolean).join('\n\n');if(!t)return;
+    try{if(navigator.share){navigator.share({text:t}).catch(function(){});return}}catch(er){}
+    copyTxt(t);
+  }
+  function pinBar(){
+    var el=document.getElementById('kcxPn');if(!el)return;
+    var c=kcD().ch[sec]||[],pm=null;c.forEach(function(x){if(x.pin)pm=x});
+    if(!pm){el.hidden=true;el.innerHTML='';return}
+    var q=textOf(pm).replace(/\s+/g,' ').trim();if(q.length>70)q=q.slice(0,70)+'…';
+    el.hidden=false;
+    el.innerHTML='<span class="kcx-pl"></span><div class="kcx-pt"><b>پیام سنجاق‌شده</b><small>'+esc(q)+'</small></div><button type="button" class="kcx-pu" data-un aria-label="برداشتن سنجاق">'+icon('pin')+'</button>';
+  }
+  var pn=document.getElementById('kcxPn');
+  if(pn)pn.addEventListener('click',function(e){
+    var c=kcD().ch[sec]||[],pm=null;c.forEach(function(x){if(x.pin)pm=x});if(!pm)return;
+    if(e.target.closest('[data-un]')){(kcD().ch[sec]||[]).forEach(function(x){delete x.pin});persist();pinBar();return}
+    var rs=rows(),r=rs[rs.length-(c.length-c.indexOf(pm))];
+    if(r){try{r.scrollIntoView({block:'center',behavior:'smooth'})}catch(er){r.scrollIntoView()}r.classList.add('flash');setTimeout(function(){r.classList.remove('flash')},1300)}
+  });
+  pinBar();
+  function act(k){
+    if(k==='x'){exit();return}
+    if(k==='reply'){var o1=picked();if(o1.length===1){exit();quote(o1[0])}return}
+    if(k==='fwd'){share(picked().map(textOf));exit();return}
+    if(k==='all'){rows().forEach(function(r){r.classList.add('sel')});upd();return}
+    var ms=picked();
+    if(k==='copy'){
+      var t=ms.map(textOf).filter(Boolean).join('\n\n');
+      if(t)copyTxt(t);exit();return;
+    }
+    if(k==='del'){
+      var c=kcD().ch[sec]||[],old=c.slice(),rs0=rows(),off0=c.length-rs0.length,drop={};
+      rs0.forEach(function(r,i){if(r.classList.contains('sel'))drop[off0+i]=1});
+      kcD().ch[sec]=c.filter(function(m,j){return !drop[j]});persist();
+      var gone=rows().filter(function(r){return r.classList.contains('sel')});
+      gone.forEach(function(r){r.style.height=r.offsetHeight+'px';r.style.overflow='hidden'});
+      void th.offsetWidth;
+      gone.forEach(function(r){r.classList.add('gone')});
+      setTimeout(function(){gone.forEach(function(r){r.remove()})},340);
+      exit();pinBar();
+      var N=document.getElementById('kcxN');if(N)N.textContent=(N.dataset.p||'')+fa(kcD().ch[sec].length)+' پیام';
+      toast('پیام حذف شد','بازگردانی',function(){kcD().ch[sec]=old;persist();if(ui.tab==='kcm')render('swap')},'del');
+    }
+  }
+  root.addEventListener('click',function(e){var b=e.target.closest('[data-sel]');if(!b||!on())return;act(b.dataset.sel)});
+
+  function edit1(r,fn){var rs=rows(),c=kcD().ch[sec]||[],x=c[c.length-rs.length+rs.indexOf(r)];if(x){fn(x);persist()}}
+  function msgOf(r){var c=kcD().ch[sec]||[],rs=rows(),i=rs.indexOf(r);return i<0?null:c[c.length-rs.length+i]}
+  function closePop(){var p=root.querySelector('.kcx-pop');if(!p)return;p.classList.add('out');setTimeout(function(){p.remove()},170)}
+  var RE=['❤️','👍','👎','🔥','🥰','👏','😁'],RE2=['😂','😮','😢','🎉','🤔','💯','🙏','👌','😍','🤯','😎','👀','💪','✅','😴','🤝'];
+    function menu(r){
+    closePop();
+    var bub=r.querySelector('.kcx-m');if(!bub)return;
+    var m=msgOf(r);if(!m)return;
+    var rc=bub.getBoundingClientRect(),W=window.innerWidth,H=window.innerHeight;
+    var p=document.createElement('div');p.className='kcx-pop';
+    var bar='<div class="kcx-pr glass"><div class="kcx-pre">'+RE.map(function(e){return '<button type="button" data-re="'+e+'"'+(m.re===e?' class="on"':'')+'>'+e+'</button>'}).join('')+'<button type="button" class="kcx-rx" data-rx aria-label="بیشتر">'+icon('chev')+'</button></div><div class="kcx-prm">'+RE2.map(function(e){return '<button type="button" data-re="'+e+'">'+e+'</button>'}).join('')+'</div></div>';
+    var mn='<div class="kcx-pm glass"><div class="kcx-ph"><span>'+icon('clock')+'</span>'+kcxTime(m.ts)+'</div>'+
+      (m.k?'':'<button type="button" data-pa="reply">'+SVREPLY+'<b>پاسخ</b></button>')+
+      '<button type="button" data-pa="copy">'+icon('copy')+'<b>کپی</b></button>'+
+      '<button type="button" data-pa="fwd">'+SVFWD+'<b>هدایت</b></button>'+
+      '<button type="button" data-pa="pin">'+icon('pin')+'<b>'+(m.pin?'برداشتن سنجاق':'سنجاق')+'</b></button>'+
+      '<button type="button" data-pa="sel">'+icon('check')+'<b>انتخاب</b></button>'+
+      '<button type="button" class="del" data-pa="del">'+icon('trash')+'<b>حذف</b></button></div>';
+    p.innerHTML='<div class="kcx-pb"></div><div class="kcx-pc"></div>'+bar+mn;
+    root.appendChild(p);
+    var bb=p.querySelector('.kcx-pr'),mm=p.querySelector('.kcx-pm'),cl=p.querySelector('.kcx-pc');
+    cl.appendChild(bub.cloneNode(true));cl.firstChild.style.maxWidth='none';cl.firstChild.style.animation='none';
+    var bh=bb.offsetHeight||52,mh=mm.offsetHeight,mw=mm.offsetWidth,bw=bb.offsetWidth;
+    var top0=76,bot0=H-12,avail=bot0-top0-bh-mh-20,ch=Math.min(rc.height,Math.max(120,avail));
+    var y=rc.top-bh-8;if(y<top0)y=top0;if(y+bh+8+ch+10+mh>bot0)y=Math.max(top0,bot0-(bh+8+ch+10+mh));
+    var cy=y+bh+8;
+    cl.style.cssText='left:'+rc.left+'px;top:'+cy+'px;width:'+rc.width+'px;max-height:'+ch+'px';
+    var mid=rc.left+rc.width/2,left=function(w,al){var x=al==='c'?mid-w/2:(mid<W/2?rc.left:rc.right-w);return Math.max(8,Math.min(W-w-8,x))};
+    bb.style.cssText='left:'+left(bw,'c')+'px;top:'+y+'px';
+    mm.style.cssText='left:'+left(mw)+'px;top:'+(cy+ch+10)+'px;transform-origin:'+(mid<W/2?'left':'right')+' top';
+    p.addEventListener('click',function(e){
+      var re=e.target.closest('[data-re]'),pa=e.target.closest('[data-pa]'),rx=e.target.closest('[data-rx]');
+      if(rx){bb.classList.toggle('open');return}
+      if(re){
+        var v=re.dataset.re,nv=m.re===v?'':v;m.re=nv;edit1(r,function(x){if(nv)x.re=nv;else delete x.re});
+        var old=bub.querySelector('.kcx-re');if(old)old.remove();
+        bub.classList.toggle('hre',!!m.re);if(m.re){var s=document.createElement('span');s.className='kcx-re';s.textContent=m.re;bub.appendChild(s)}
+        closePop();return;
+      }
+      if(pa){
+        var k=pa.dataset.pa;closePop();
+        if(k==='reply')quote(m);
+        else if(k==='pin'){var np=!m.pin,pc=kcD().ch[sec]||[];pc.forEach(function(x){delete x.pin});var prs=rows(),px=pc[pc.length-prs.length+prs.indexOf(r)];if(px&&np)px.pin=1;persist();pinBar()}
+        else if(k==='fwd')share([textOf(m)]);
+        else if(k==='sel'){root.classList.add('kcx-sel');r.classList.add('sel');upd()}
+        else{r.classList.add('sel');act(k)}
+        return;
+      }
+      if(e.target.classList.contains('kcx-pb')||e.target===p)closePop();
+    });
+    requestAnimationFrame(function(){p.classList.add('in')});
+  }
+}
+function viewKcm(){
+  var b2=kcBuild(),b=b2,sec=ui.kcsec||'',a=kcPg.a;
+  if(!sec){
+    return head('مربی هوشمند','من و مشاور',{back:1,backAct:'kcmBack',backTxt:'مربی هوشمند'})+'<div class="kc-topics glass">'+KC_TOP.map(function(t){
+      return '<button type="button" class="kc-topic" data-act="kcsec" data-v="'+t[0]+'"><span class="kc-tt"><b><i class="kc-ph" style="background:'+t[4]+'">'+t[3]+'</i>'+t[2]+'</b><small>'+kcxTime((kcLast(t[0])||{ts:Date.now()}).ts)+'</small></span><span class="kc-tpv">'+esc(kcPrev(t[0],a))+'</span></button>';
+    }).join('')+'</div>';
+  }
+  var tp=KC_TOP.filter(function(t){return t[0]===sec})[0],th=kcD().ch[sec]||[],lh='',ld='';
+  th.forEach(function(m){var dk=new Date(m.ts).toDateString();if(dk!==ld){lh+='<div class="kcx-day" data-d="'+dk+'"><span>'+kcxDay(m.ts)+'</span></div>';ld=dk}lh+=kcxMsg(m)});
+  var smile=icon('plus'),dots='<svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><circle cx="12" cy="5.5" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r="1.7" fill="currentColor" stroke="none"/></svg>';
+  return '<div class="kcx" data-sec="'+sec+'"><div class="kcx-top"><button type="button" class="kcx-rb glass" data-act="kcmBack" aria-label="برگشت">'+icon('chev')+'</button>'+
+    '<div class="kcx-pill glass"><div class="kcx-av" style="background:'+tp[4]+'">'+tp[3]+'</div><div class="kcx-ti"><b>'+tp[2]+'</b><small id="kcxN" data-p="">'+fa(th.length)+' پیام</small></div></div>'+
+    '<button type="button" class="kcx-rb glass" data-act="kcClear" aria-label="پاک کردن گفتگو">'+dots+'</button>'+
+    '<div class="kcx-st"><button type="button" class="kcx-rb glass" data-sel="x" aria-label="لغو انتخاب">'+icon('close')+'</button><div class="kcx-pill glass"><b id="kcxSc"></b></div><div class="kcx-duo glass"><button type="button" data-sel="copy" aria-label="کپی">'+icon('copy')+'</button><button type="button" class="del" data-sel="del" aria-label="حذف">'+icon('trash')+'</button></div></div></div>'+
+    '<div class="kcx-pn glass" id="kcxPn" hidden></div>'+
+    '<div class="kcx-l" id="kcxL"><div class="kc-chat" style="--kt:\''+kcxTime(Date.now())+'\'">'+kcAsk(sec)+(sec==='rep'?b2.rep:sec==='mot'?kcMotHTML(a):b2.plan)+'</div><div class="kcx-th" id="kcxTh">'+lh+'</div></div>'+
+    '<div class="kcx-em glass" id="kcxEm" aria-hidden="true"></div>'+
+    '<div class="kcx-sb"><button type="button" class="kcx-sbb glass" data-sel="reply">'+SVREPLY+'<span>پاسخ</span></button><button type="button" class="kcx-sbb glass" data-sel="fwd">'+SVFWD+'<span>هدایت</span></button></div>'+
+    '<form class="kcx-in" id="kcxF" autocomplete="off"><div class="kcx-box glass"><button type="button" class="kcx-ib" id="kcxE" aria-label="انتخاب گزارش‌کار" aria-expanded="false">'+smile+'</button><textarea id="kcxT" rows="1" maxlength="500" enterkeyhint="send" placeholder="پیام" aria-label="پیام"></textarea></div><button type="submit" class="kcx-s" aria-label="ارسال"><svg viewBox="0 0 24 24" class="ic" aria-hidden="true"><path d="M12 19V5"/><path d="M5.5 11.5 12 5l6.5 6.5"/></svg></button></form></div>';
+}
+function kcBackA(){subBack()}
+function kcmBackA(){if(history.state&&history.state.sub){history.back();return}if(ui.kcsec){ui.kcsec='';render('enter');window.scrollTo(0,0);return}ui.tab='coach';render('enter');window.scrollTo(0,0)}
+actions.kcAdv=function(){subPush();ui.tab='kcm';ui.kcsec='';render('enter');window.scrollTo(0,0)};
+actions.kcsec=function(d){subPush();ui.kcsec=d.v;ui.kcq=null;render('enter');window.scrollTo(0,0)};
+actions.kcmBack=kcmBackA;
+actions.kcClear=function(){
+  var sec=ui.kcsec,c=kcD().ch[sec];if(!c||!c.length){toast('گفتگو خالی است',null,null,'info');return}
+  var old=c.slice();kcD().ch[sec]=[];persist();render('swap');
+  toast('گفتگو پاک شد','بازگردانی',function(){kcD().ch[sec]=old;persist();if(ui.tab==='kcm')render('swap')},'del');
+};
+function openCoach(){subPush();ui.tab='coach';render('enter');window.scrollTo(0,0)}
+document.addEventListener('click',function(e){
+  if((ui.tab!=='coach'&&ui.tab!=='kcm')||!kcPg)return;
+  var b=e.target.closest('[data-kc]');if(!b)return;var k=b.dataset.kc,a=kcPg.a,adv=kcPg.adv,pl=kcPg.pl,sw={close:function(){render('swap')}};
     if(k==='close'){sw.close();return}
-    if(k==='tt'){sw.close();actions.openTT();return}
+    if(k==='q'){ui.kcq=((ui.kcq==null?Math.floor(Date.now()/864e5):ui.kcq)+1);render('swap');return}
+    if(k==='rep'){ui.ksec='rep';ui.tab='kk';render('enter');window.scrollTo(0,0);return}
+    if(k==='tt'){ui.tab='kk';render('enter');actions.openTT();return}
     if(k==='act'){
       var x=adv[+b.dataset.i];if(!x||!x.act)return;
-      if(x.act.k==='goal'){kkD().goal=x.act.v;mutate();toast('هدف روزانه '+kkFmt(x.act.v)+' شد',null,null,'ok');b.disabled=true;b.textContent='انجام شد ✓'}
+      if(x.act.k==='goal'){kkD().goal=x.act.v;mutate();toast(EN?'Daily goal set to '+kkFmt(x.act.v):'هدف روزانه '+kkFmt(x.act.v)+' شد',null,null,'ok');b.disabled=true;b.textContent='انجام شد ✓'}
       else if(x.act.k==='tests'){kcMakeTests(x.act.v,a);b.disabled=true;b.textContent='اضافه شد ✓'}
+      else if(x.act.k==='review'){kcMakeReview(x.act.ls);b.disabled=true;b.textContent='اضافه شد ✓'}
+      else if(x.act.k==='focus'){kcMakeFocus(x.act.rows);b.disabled=true;b.textContent='اضافه شد ✓'}
       return;
     }
     if(!pl||pl.none)return;
@@ -5929,16 +6672,15 @@ function openCoach(){
       ttPlans().push(p);kcD().dis='';kcRecordPlan(p.data,nm);mutate();sw.close();
       toast('«'+nm+'» ذخیره شد؛ از «کنکوریا ← جدول» باز می‌شود',null,null,'ok');
     }else if(k==='rej'){kcD().dis=pl.sig;kcD().ts=Date.now();persist();sw.close();toast('پیشنهاد رد شد',null,null,'info')}
-    else if(k==='again'){kcD().dis='';persist();sw.close();openCoach()}
-  });
-}
-actions.openCoach=openCoach;
+    else if(k==='again'){kcD().dis='';persist();render('swap')}
+});
+actions.openCoach=openCoach;actions.kcBack=kcBackA;
 function kcCard(){
   var sm='از گزارش‌ها و ساعت‌هایت راهکار بگیر و جدول پیشنهادی ببین';
   try{
     var a=kcAnalyze(KC_N);
-    var fq=kcD();if(fq.fr||fq.fp)sm='نظر مربی درباره‌ی آخرین '+(fq.fr&&fq.fp?'گزارش و برنامه':fq.fr?'گزارش':'برنامه')+' آماده است';
-    else if(a.act>=3||a.teDays>=2)sm='میانگین '+kkShort(a.avg)+' در روز'+(a.teDays?' · '+fa(Math.round(a.teAvg))+' تست':'')+' · راهکار و جدول پیشنهادی';
+    var fq=kcD();if(fq.fr||fq.fp)sm=(EN?'The coach\'s opinion on your latest '+(fq.fr&&fq.fp?'report and plan':fq.fr?'report':'plan')+' is ready':'نظر مربی درباره‌ی آخرین '+(fq.fr&&fq.fp?'گزارش و برنامه':fq.fr?'گزارش':'برنامه')+' آماده است');
+    else if(a.act>=3||a.teDays>=2)sm=(EN?'Average '+kkShort(a.avg)+' per day'+(a.teDays?' · '+fa(Math.round(a.teAvg))+' tests':'')+' · advice and a suggested table':'میانگین '+kkShort(a.avg)+' در روز'+(a.teDays?' · '+fa(Math.round(a.teAvg))+' تست':'')+' · راهکار و جدول پیشنهادی');
   }catch(er){}
   return '<button type="button" class="wrcard glass" data-act="openCoach"><span class="ib" style="background:linear-gradient(145deg,#a78bfa,#6d4ae0)">'+icon('spark')+'</span><div><b>مربی هوشمند<span class="vbadge">'+icon('star')+'جدید</span></b><small>'+sm+'</small></div></button>';
 }
@@ -5974,21 +6716,6 @@ function tbCard(){
   }catch(er){}
   return '<button type="button" class="wrcard glass" data-act="tbOpen"><span class="ib" style="background:linear-gradient(145deg,#fbbf24,#e07b0b)">'+icon('book')+'</span><div><b>کتاب‌های درسی</b><small>'+sm+'</small></div></button>';
 }
-var MZ_LINKS=[
-  {img:'mz-maze',url:'https://biomaze.ir/',n:'ماز'},
-  {img:'mz-market',url:'https://mazemarket.ir/',n:'ماز مارکت'},
-  {img:'mz-digi',url:'https://digimaze.org/',n:'دیجی‌ماز'}
-];
-function mzBanners(){
-  return '<button type="button" class="wrcard glass mz-head" data-act="mzOpen"><span class="ib mz-ib"><img src="img/mz-icon.webp" alt="" draggable="false"></span><div><b>ماز</b><small>سایت‌ها و فروشگاه‌های ماز</small></div></button>';
-}
-function viewMZ(){
-  return head('سه سایت ماز','ماز',{back:1,backAct:'mzBack',backTxt:'کنکوریا'})+'<div class="mz-page">'+MZ_LINKS.map(function(l){
-    return '<section class="mz-sec"><h2 class="mz-t">'+l.n+'</h2><a class="mz-ban" href="'+l.url+'" target="_blank" rel="noopener noreferrer" aria-label="رفتن به سایت '+l.n+'"><img src="img/'+l.img+'.webp" alt="'+l.n+'" decoding="async" draggable="false"></a></section>';
-  }).join('')+'</div>';
-}
-actions.mzOpen=function(){ui.tab='mz';render('enter');window.scrollTo(0,0)};
-actions.mzBack=function(){ui.tab='kk';render('enter');window.scrollTo(0,0)};
 var kkEd=null;
 function openKK(id){
   if(kkEd)return;
@@ -6097,8 +6824,8 @@ ui.rksec='est';
 function rkD(){var p=state.profile;if(!p.rk||typeof p.rk!=='object')p.rk=rkClean(null);return p.rk}
 function rkChips(act,items,cur){return '<div class="chips rk-ch">'+items.map(function(i){return '<button type="button" class="chip" data-act="'+act+'" data-v="'+i[0]+'" aria-pressed="'+(cur===i[0])+'">'+i[1]+'</button>'}).join('')+'</div>'}
 function rkSel(key,items,cur,lbl){return '<select class="field rk-in rk-sel" data-rk="'+key+'" aria-label="'+lbl+'">'+items.map(function(i){return '<option value="'+i[0]+'"'+(String(cur)===String(i[0])?' selected':'')+'>'+esc(i[1])+'</option>'}).join('')+'</select>'}
-function rkRange(a,b){return fa(rkFmt(rkRound(a)))+' تا '+fa(rkFmt(rkRound(b)))}
-function rkPctTxt(p){return fa((Math.round(p*10)/10).toFixed(1).replace(/\.0$/,'')).replace('.','٫')}
+function rkRange(a,b){return fa(rkFmt(rkRound(a)))+(EN?' – ':' تا ')+fa(rkFmt(rkRound(b)))}
+function rkPctTxt(p){return fa((Math.round(p*10)/10).toFixed(1).replace(/\.0$/,'')).replace('.',EN?'.':'٫')}
 function rkFormHTML(){
   var D=rkD(),x=D.cur,G=RK_G[x.g];
   var info='<section class="glass rk-card"><h3 class="rk-h">اطلاعات کنکور</h3>'+
@@ -6221,8 +6948,8 @@ function viewTB(){
   }
   return head((L.length+IM.length)?fa(L.length+IM.length)+' مورد':'هنوز چیزی نیست','کتاب‌های درسی',{back:1,backAct:'tbBack',backTxt:'کنکوریا'})+addBtn+body;
 }
-actions.tbBack=function(){ui.tab='kk';render('enter');window.scrollTo(0,0)};
-actions.tbOpen=function(){ui.tab='tb';render('enter');window.scrollTo(0,0)};
+actions.tbBack=subBack;
+actions.tbOpen=function(){subPush();ui.tab='tb';render('enter');window.scrollTo(0,0)};
 actions.tbNew=async function(){
   var P=tbNative();
   if(!P){toast('افزودن PDF فقط در برنامهٔ اندروید کار می‌کند',null,null,'warn');return}
@@ -6876,8 +7603,8 @@ function pvDoClose(){
 function rkPaint(){var r=$('#rkRes');if(r)r.innerHTML=rkResHTML()}
 actions.lsBack=function(){ui.tab='week';ui.cat=null;ui.filter='all';render('enter');window.scrollTo(0,0)};
 actions.lsOpen=function(){ui.tab='lists';ui.cat=null;ui.filter='all';ui.lsec='cats';render('enter');window.scrollTo(0,0)};
-actions.rkBack=function(){ui.tab='kk';render('enter');window.scrollTo(0,0)};
-actions.rkOpen=function(){ui.tab='rk';ui.rksec='est';render('enter');window.scrollTo(0,0)};
+actions.rkBack=subBack;
+actions.rkOpen=function(){subPush();ui.tab='rk';ui.rksec='est';render('enter');window.scrollTo(0,0)};
 actions.rksec=function(d){ui.rksec=d.v;render('swap');window.scrollTo(0,0)};
 actions.rkg=function(d){rkD().cur.g=d.v;persist();render('swap')};
 actions.rkrg=function(d){rkD().cur.rg=d.v;persist();render('swap')};

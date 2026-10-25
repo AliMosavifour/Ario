@@ -707,5 +707,12 @@ var __EN={
 "بنر اختصاصی «":"Exclusive banner “",
 "رنگ‌های ویژه‌ی نام":"Special name colors",
 "افکت نور و ذره‌ها":"Glow & particle effects",
-"پیش‌نمایش":"Preview"
+"پیش‌نمایش":"Preview",
+"پین گروهی":"Pin as a group",
+"اسم گروه، مثلاً: انجام ندادم":"Group name, e.g. Not done",
+"اسم گروه":"Group name",
+"پیشنهاد":"Suggestions",
+"یا اضافه به گروه قبلی":"Or add to an earlier group",
+"پین روی صفحه‌ی اصلی":"Pin on the home screen",
+"خاموش باشد، گروه فقط ذخیره می‌شود":"If off, the group is only saved"
 };
