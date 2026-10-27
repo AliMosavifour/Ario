@@ -587,8 +587,16 @@ function movePill(){
   p.style.width=on.offsetWidth+'px';
   p.style.transform='translateX('+on.offsetLeft+'px)';
 }
+function viewFail(e){
+  try{if(window.__arioErr)window.__arioErr('view:'+ui.tab,e)}catch(x){}
+  var m=esc(String(e&&e.message||e||'').slice(0,300));
+  return '<div class="empty" style="padding:28px 18px;text-align:center"><b>'+__("این صفحه باز نشد","This page could not open")+'</b><p style="opacity:.7;font-size:13px;direction:ltr;word-break:break-word">'+m+'</p>'+
+    '<p style="opacity:.7;font-size:13px">'+__("بقیهٔ برنامه کار می‌کند. یک تب دیگر را بزن.","The rest of the app still works. Try another tab.")+'</p></div>';
+}
 function render(mode){
-  var h=ui.tab==='char'?viewChar():ui.tab==='today'?viewToday():ui.tab==='week'?viewWeek():ui.tab==='kk'?viewKK():ui.tab==='rk'?viewRK():ui.tab==='coach'?viewCoach():ui.tab==='kcm'?viewKcm():ui.tab==='tb'?viewTB():ui.tab==='stats'?viewStats():ui.tab==='account'?viewAccount():viewLists();
+  var h;
+  try{h=ui.tab==='char'?viewChar():ui.tab==='today'?viewToday():ui.tab==='week'?viewWeek():ui.tab==='kk'?viewKK():ui.tab==='rk'?viewRK():ui.tab==='coach'?viewCoach():ui.tab==='kcm'?viewKcm():ui.tab==='tb'?viewTB():ui.tab==='stats'?viewStats():ui.tab==='account'?viewAccount():viewLists()}
+  catch(e){h=viewFail(e)}
   var v=$('#view');
   var qv0=document.getElementById('qaIn'),qs0=qv0&&qv0.value?{v:qv0.value,f:document.activeElement===qv0}:null;
   v.className='app'+(mode?' '+mode:'')+(v.classList.contains('cv')?' cv':'');
@@ -7735,17 +7743,230 @@ actions.rkRep=async function(){
 };
 
 actions.adPrev=adPrevA;actions.adNext=adNextA;actions.openChar=openCharA;actions.charBack=charBackA;actions.chView=chViewA;actions.chFlip=chFlipA;actions.pkWave=pkWaveA;actions.buyChar=buyCharA;
-applyTheme();charRoute();render('enter');
-maybeWelcome();
-(function loop(){tick();setTimeout(loop,1000-(Date.now()%1000)+10)})();
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible'){if(ui.day<todayKey()&&ui.tab!=='week')ui.day=todayKey();if(sh.wrap.hidden)render();if(ui.tab==='account')reloadAccount();tick();nativeSync();nsTakeActs();if(nsCfg().th==='banner')nsPushStyle()}
-});
-nativeInit();
-alCheck();if(lkGet()){alSecure(true);showLock()}
-try{gmCheck(true)}catch(e){}
+/* ---------- Ario voice assistant: say "Ario" / «آریو», speak a task, Ario asks where to save it ---------- */
+var AO={el:null,open:false,sid:0,busy:false,wk:false,onText:null,mic:null,said:null,msg:null,ch:null,g:null,inp:null};
+function aoT(fa,en){return __(fa,en)}
+function aoSleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function aoSpeak(t){
+  try{
+    if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return Promise.resolve();
+    speechSynthesis.cancel();
+    return new Promise(function(r){var u=new SpeechSynthesisUtterance(t);u.lang=EN?'en-US':'fa-IR';u.onend=u.onerror=function(){r()};setTimeout(r,4500);speechSynthesis.speak(u)});
+  }catch(e){return Promise.resolve()}
+}
+function aoState(s){if(AO.g)AO.g.className='ao-g '+s}
+function aoSay(txt,speak){if(AO.msg)AO.msg.textContent=txt;return speak?aoSpeak(txt):Promise.resolve()}
+function aoWakeGet(){try{return localStorage.getItem('ario.wake')==='1'}catch(e){return false}}
+function aoBuild(){
+  if(AO.el)return;
+  var f=document.createElement('button');f.type='button';f.id='aoFab';f.className='ao-fab';f.setAttribute('aria-label',aoT('دستیار صوتی Ario','Ario voice assistant'));
+  f.innerHTML='<img src="img/ario-ghost.webp" alt="" draggable="false">';
+  f.addEventListener('click',function(){aoOpen()});
+  document.body.appendChild(f);
+  var d=document.createElement('div');d.id='ao';d.className='ao';d.hidden=true;d.setAttribute('role','dialog');d.setAttribute('aria-label','Ario');
+  d.innerHTML='<button type="button" class="ao-x" aria-label="'+aoT('بستن','Close')+'">'+icon('close')+'</button>'+
+    '<div class="ao-main"><div class="ao-g idle"><img src="img/ario-ghost.webp" alt="" draggable="false"></div>'+
+    '<div class="ao-said"></div><div class="ao-msg"></div><div class="ao-ch"></div></div>'+
+    '<div class="ao-bot"><form class="ao-f" autocomplete="off"><input class="ao-in" type="text" maxlength="160" placeholder="'+aoT('یا اینجا بنویس…','Or type here…')+'"><button type="button" class="ao-mic" aria-label="'+aoT('میکروفون','Microphone')+'">'+icon('mic')+'</button></form>'+
+    '<label class="ao-wake"><input type="checkbox"> <span>'+aoT('با گفتن «آریو» بیدار شود (آزمایشی، فقط وقتی برنامه باز است)','Wake on “Ario” (experimental, only while the app is open)')+'</span></label></div>';
+  document.body.appendChild(d);
+  AO.el=d;AO.g=d.querySelector('.ao-g');AO.said=d.querySelector('.ao-said');AO.msg=d.querySelector('.ao-msg');AO.ch=d.querySelector('.ao-ch');AO.mic=d.querySelector('.ao-mic');AO.inp=d.querySelector('.ao-in');
+  d.querySelector('.ao-x').addEventListener('click',aoClose);
+  AO.mic.addEventListener('click',function(){aoRetry()});
+  d.querySelector('.ao-f').addEventListener('submit',function(e){e.preventDefault();var v=AO.inp.value.trim();AO.inp.value='';if(v&&AO.onText)AO.onText(v)});
+  var cb=d.querySelector('.ao-wake input');cb.checked=aoWakeGet();
+  cb.addEventListener('change',function(){
+    try{localStorage.setItem('ario.wake',cb.checked?'1':'0')}catch(e){}
+    if(cb.checked)aoSay(aoT('وقتی بسته شدم، با گفتن «آریو» بیدار می‌شوم. این حالت باتری بیشتری مصرف می‌کند.','After I close, say “Ario” to wake me. This uses more battery.'));
+    else AO.wk=false;
+  });
+}
+async function aoOpen(){
+  aoBuild();if(AO.open)return;
+  AO.open=true;AO.wk=false;AO.sid++;var sid=AO.sid;
+  AO.said.textContent='';AO.ch.innerHTML='';AO.msg.textContent='';
+  AO.el.hidden=false;requestAnimationFrame(function(){requestAnimationFrame(function(){AO.el.classList.add('on')})});
+  await aoConverse(sid);
+}
+function aoClose(){
+  AO.sid++;AO.open=false;AO.busy=false;AO.onText=null;
+  try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
+  if(!AO.el)return;AO.el.classList.remove('on');setTimeout(function(){if(!AO.open)AO.el.hidden=true},300);
+  setTimeout(aoWakeStart,800);
+}
+async function aoHear(sid,prompt){
+  aoState('listen');var t='';
+  try{t=await voiceListen(prompt||aoT('بگو…','Say it…'),AO.mic)}catch(e){}
+  if(sid!==AO.sid)return '';aoState('idle');
+  if(t)AO.said.textContent='«'+t+'»';
+  return t||'';
+}
+async function aoConverse(sid){
+  AO.onText=function(t){aoHandle(sid,t)};
+  aoState('listen');
+  await aoSay(aoT('جانم؟ بگو چه کاری داری.','Yes? Tell me what you need.'),true);
+  if(sid!==AO.sid)return;
+  var t=await aoHear(sid,aoT('مثلاً: دوشنبه تکلیف ریاضی دارم','e.g. Monday I have a math assignment'));
+  if(sid!==AO.sid)return;
+  if(!t){aoSay(aoT('چیزی نشنیدم. روی میکروفون بزن یا بنویس.','I didn’t hear anything. Tap the mic or type.'));return}
+  await aoHandle(sid,t);
+}
+function aoRetry(){
+  if(!AO.open||AO.busy)return;AO.sid++;var sid=AO.sid;AO.ch.innerHTML='';
+  (async function(){
+    AO.onText=function(t){aoHandle(sid,t)};
+    var t=await aoHear(sid);if(sid!==AO.sid)return;
+    if(t)await aoHandle(sid,t);else aoSay(aoT('چیزی نشنیدم. دوباره امتحان کن.','I didn’t hear anything. Try again.'));
+  })();
+}
+/* strip the assistant's name and filler words, keep the task itself */
+function aoClean(raw){
+  var t=String(raw||'').replace(/^\s*(?:هی|سلام|ای|hey|hi|ok)?[\s,،]*(?:آریو|اریو|ario)[\s,،:]*/i,'');
+  return t.trim();
+}
+function aoTitle(t){
+  var x=String(t||'');
+  if(EN){x=x.replace(/\b(i have|i've got|i need to|i must|remind me to|remind me|please|a|an|the|also|too)\b/gi,' ')}
+  else{
+    x=x.replace(/(^|\s)(روز|همچنین|همینطور|یه|یک|دارم|باید|لطفا|لطفاً|یادم بنداز|یادآوری کن|که|من|هم)(?=\s|$)/g,' ');
+    x=x.replace(/(^|\s)(تکلیفی|کلاسی|امتحانی|آزمونی|جلسه‌ای|کاری)(?=\s|$)/g,function(m,p,w){return p+w.replace(/ی$|‌ای$/,'')});
+  }
+  x=x.replace(/\s+/g,' ').trim();
+  return x||String(t||'').trim();
+}
+function aoChoices(list,pick){
+  AO.ch.innerHTML='';
+  list.forEach(function(it){
+    var b=document.createElement('button');b.type='button';b.textContent=it.l;if(it.hi)b.className='hi';
+    b.addEventListener('click',function(){pick(it.v)});AO.ch.appendChild(b);
+  });
+}
+/* ask a question: answer by tapping a choice, speaking, or typing */
+async function aoAsk(sid,question,list,match,hint){
+  AO.ch.innerHTML='';
+  await aoSay(question,true);if(sid!==AO.sid)return null;
+  var done=false,pick,p=new Promise(function(r){pick=function(v){if(!done){done=true;AO.onText=null;AO.ch.innerHTML='';r(v)}}});
+  aoChoices(list,pick);
+  AO.onText=function(t){var v=match(t);if(v!=null)pick(v);else aoSay(aoT('نفهمیدم؛ یکی از گزینه‌ها را بزن.','I didn’t get that; tap one of the options.'))};
+  (async function(){
+    var t=await aoHear(sid,hint);if(done||sid!==AO.sid)return;
+    if(t){var v=match(t);if(v!=null)pick(v);else aoSay(aoT('نفهمیدم؛ یکی از گزینه‌ها را بزن.','I didn’t get that; tap one of the options.'))}
+  })();
+  return p;
+}
+function aoNorm(t){return vcNorm(String(t||'')).toLowerCase().replace(/\u200c/g,' ')}
+function aoMatchWhere(t){
+  var x=aoNorm(t);
+  if(/هر دو|هردو|both/.test(x))return 'both';
+  if(/لغو|نه |^نه$|نمی ?خوام|cancel|^no$|nothing|never ?mind/.test(x+' '))return 'no';
+  if(/جدول|برنامه|پارت|timetable|schedule|plan|table/.test(x))return 'tt';
+  if(/کار|تسک|تیک|لیست|task|todo|to-do|check/.test(x))return 'task';
+  return null;
+}
+function aoDow(k){return (parse(k).getDay()+1)%7}
+function aoDayLabel(k){return relDate(k)}
+async function aoAskDay(sid){
+  var td=todayKey(),list=[],i;
+  for(i=0;i<7;i++){var k=addDays(td,i);list.push({v:k,l:aoDayLabel(k)})}
+  return aoAsk(sid,aoT('برای کدام روز؟','Which day?'),list,function(t){var o=nlParse(t);return o.hasDate&&o.d?o.d:null},aoT('مثلاً: دوشنبه','e.g. Monday'));
+}
+async function aoAskPart(sid,dk){
+  var t=ttGet(),d=aoDow(dk),list=[],first=-1;
+  t.rows.forEach(function(r,i){var c=ttCell(t,r.id,d),used=!!(c&&c.t);if(!used&&first<0)first=i;list.push({v:i,l:aoT('پارت ','Part ')+fa(i+1)+(used?' •':''),hi:i===first})});
+  if(first>=0)list.forEach(function(x){x.hi=x.v===first});
+  var q=aoT('کدام پارت جدول؟','Which part of the timetable?')+(first>=0?' '+aoT('پارت '+fa(first+1)+' خالی است.','Part '+(first+1)+' is empty.'):'');
+  return aoAsk(sid,q,list,function(x){
+    var s=aoNorm(x),n=parseInt(vcNum(x),10);
+    if(n>=1&&n<=t.rows.length)return n-1;
+    var ord=['اول','دوم','سوم','چهارم','پنجم','ششم','هفتم','first','second','third','fourth','fifth','sixth','seventh'],j;
+    for(j=0;j<ord.length;j++)if(s.indexOf(ord[j])>-1&&(j%7)<t.rows.length)return j%7;
+    if(/خالی|empty|free/.test(s)&&first>=0)return first;
+    return null;
+  },aoT('شمارهٔ پارت را بگو','Say the part number'));
+}
+function aoSaveTask(o,title,dk){
+  var c=o.c||defCat();
+  state.tasks.push({id:uid(),done:false,doneAt:0,ts:Date.now(),t:title,n:'',d:dk||todayKey(),tm:o.tm,te:o.te,col:'',p:o.p,c:c,r:o.tm&&state.profile.notif?0:-1,rp:o.rp,st:[],tg:o.tg});
+  mutate();
+}
+function aoSaveTT(title,dk,idx){
+  var t=ttGet(),r=t.rows[idx];if(!r)return false;
+  var d=aoDow(dk),k=r.id+'_'+d,ex=ttCell(t,r.id,d),txt=ex&&ex.t?(ex.t+' - '+title):title;
+  t.cells[k]=Object.assign({t:'',c:-1,h:'',k:-1,ic:'',n:''},ex||{},{t:txt.slice(0,80)});
+  var cur=state.profile.ttCur;
+  if(cur){var p=ttPlans().find(function(x){return x.id===cur});if(p){p.data=ttClone(t);p.upd=Date.now()}}
+  persist();
+  try{if(ttEl&&typeof ttRedraw==='function')ttRedraw()}catch(e){}
+  return true;
+}
+async function aoHandle(sid,text){
+  if(AO.busy||sid!==AO.sid)return;AO.busy=true;
+  try{
+    aoState('think');AO.ch.innerHTML='';AO.said.textContent='«'+text+'»';
+    var raw=aoClean(text),o=nlParse(raw);
+    var title=aoTitle(o.t);
+    if(!title){await aoSay(aoT('متوجه کار نشدم؛ دوباره بگو.','I didn’t catch the task; say it again.'));aoState('idle');return}
+    var dk=o.hasDate?o.d:null;
+    var q='«'+title+'»'+(dk?' · '+relDate(dk):'')+(o.tm?' · '+fa(pad(pt(o.tm).h)+':'+pad(pt(o.tm).m)):'')+'. '+aoT('کجا ذخیره کنم؟','Where should I save it?');
+    var where=await aoAsk(sid,q,[{v:'task',l:aoT('کار (تیک‌دار)','Task (with tick)')},{v:'tt',l:aoT('جدول برنامه درسی','Study timetable')},{v:'both',l:aoT('هر دو','Both')},{v:'no',l:aoT('لغو','Cancel'),}],aoMatchWhere,aoT('مثلاً: کار، جدول، هر دو','e.g. task, timetable, both'));
+    if(sid!==AO.sid)return;
+    if(!where||where==='no'){await aoSay(aoT('باشه، ذخیره نشد.','OK, nothing saved.'),true);aoState('idle');setTimeout(function(){if(sid===AO.sid)aoClose()},1400);return}
+    if(!dk&&where!=='task'){dk=await aoAskDay(sid);if(sid!==AO.sid||!dk)return}
+    var part=-1;
+    if(where!=='task'){part=await aoAskPart(sid,dk);if(sid!==AO.sid||part==null||part<0)return}
+    var done=[];
+    if(where==='task'||where==='both'){aoSaveTask(o,title,dk);done.push(aoT('کارها','Tasks'))}
+    if(where==='tt'||where==='both'){if(aoSaveTT(title,dk,part))done.push(aoT('جدول برنامه (پارت '+fa(part+1)+')','Timetable (part '+(part+1)+')'))}
+    aoState('ok');
+    await aoSay(aoT('ذخیره شد ✓ ','Saved ✓ ')+'«'+title+'» → '+done.join(' + ')+(dk?' · '+relDate(dk):''),true);
+    AO.onText=null;
+    setTimeout(function(){if(sid===AO.sid)aoClose()},2200);
+  }catch(e){try{if(window.__arioErr)window.__arioErr('assistant',e)}catch(x){}aoSay(aoT('یک خطا پیش آمد؛ دوباره امتحان کن.','Something went wrong; try again.'))}
+  finally{AO.busy=false;if(AO.g&&AO.g.className.indexOf('ok')<0)aoState('idle')}
+}
+/* experimental wake word: listens for "Ario" while the app is open (native speech plugin only) */
+var AO_RX=/(^|\s)(ario|آریو|اریو|آریوو|aryo)(\s|$)/i;
+function aoWakeStart(){
+  if(!aoWakeGet()||AO.open||AO.wk||!SRN||document.visibilityState!=='visible')return;
+  AO.wk=true;
+  (async function(){
+    var fails=0;
+    try{var pm=await SRN.checkPermissions();if(!pm||pm.speechRecognition!=='granted'){AO.wk=false;return}}catch(e){AO.wk=false;return}
+    while(AO.wk&&aoWakeGet()&&!AO.open&&document.visibilityState==='visible'&&!vcBusy){
+      var heard=false,h=null;
+      try{
+        h=await SRN.addListener('partialResults',function(r){var m=(r&&r.matches&&r.matches[0])||'';if(AO_RX.test(m))heard=true});
+        await SRN.start({language:EN?'en-US':'fa-IR',maxResults:1,partialResults:true,popup:false});
+        for(var i=0;i<60&&!heard&&AO.wk&&!AO.open;i++)await aoSleep(250);
+        try{await SRN.stop()}catch(e2){}
+        try{h&&h.remove&&h.remove()}catch(e3){}
+        fails=0;
+      }catch(e){try{h&&h.remove&&h.remove()}catch(e4){}fails++;if(fails>=3){AO.wk=false;return}await aoSleep(2500)}
+      if(heard){AO.wk=false;aoOpen();return}
+      await aoSleep(500);
+    }
+    AO.wk=false;
+  })();
+}
 
-(function(){var e=document.getElementById('splash');if(!e)return;var w=Math.max(0,1100-(Date.now()-(window.__t0||0)));setTimeout(function(){e.classList.add('out');setTimeout(function(){e.remove()},450)},w)})();
-requestAnimationFrame(function(){requestAnimationFrame(function(){$('.tabbar').classList.add('ready');movePill.k=null;movePill()})});
-window.addEventListener('resize',movePill);
+function boot(n,f){try{f()}catch(e){try{if(window.__arioErr)window.__arioErr('boot:'+n,e)}catch(x){}}}
+boot('theme',function(){applyTheme()});
+boot('route',function(){charRoute()});
+boot('render',function(){render('enter')});
+window.__arioReady=true;
+boot('welcome',function(){maybeWelcome()});
+boot('loop',function(){(function loop(){try{tick()}catch(e){try{if(window.__arioErr)window.__arioErr('tick',e)}catch(x){}}setTimeout(loop,1000-(Date.now()%1000)+10)})()});
+document.addEventListener('visibilitychange',function(){
+  try{
+  if(document.visibilityState==='visible'){if(ui.day<todayKey()&&ui.tab!=='week')ui.day=todayKey();if(sh.wrap.hidden)render();if(ui.tab==='account')reloadAccount();tick();nativeSync();nsTakeActs();if(nsCfg().th==='banner')nsPushStyle()}
+  }catch(e){try{if(window.__arioErr)window.__arioErr('visible',e)}catch(x){}}
+});
+boot('native',function(){nativeInit()});
+boot('lock',function(){alCheck();if(lkGet()){alSecure(true);showLock()}});
+boot('gm',function(){gmCheck(true)});
+boot('assistant',function(){aoBuild();setTimeout(aoWakeStart,2500)});
+
+boot('splash',function(){var e=document.getElementById('splash');if(!e)return;var w=Math.max(0,1100-(Date.now()-(window.__t0||0)));setTimeout(function(){e.classList.add('out');setTimeout(function(){e.remove()},450)},w)});
+boot('pill',function(){requestAnimationFrame(function(){requestAnimationFrame(function(){try{$('.tabbar').classList.add('ready');movePill.k=null;movePill()}catch(e){}})})});
+window.addEventListener('resize',function(){try{movePill()}catch(e){}});
 })();
