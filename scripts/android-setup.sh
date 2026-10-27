@@ -25,6 +25,11 @@ if ! grep -q 'android.speech.RecognitionService' "$MAN"; then
   sed -i 's#<application#<queries><intent><action android:name="android.speech.RecognitionService" /></intent><intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent></queries>\n    <application#' "$MAN"
 fi
 
+# Android 11+: let the app find the text-to-speech engine (the Ario assistant talks).
+if ! grep -q 'android.intent.action.TTS_SERVICE' "$MAN"; then
+  sed -i 's#<queries>#<queries><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>#' "$MAN"
+fi
+
 # Make sure the app (and its notifications) can lay out right-to-left.
 if ! grep -q 'android:supportsRtl' "$MAN"; then
   sed -i 's#<application#<application android:supportsRtl="true"#' "$MAN"

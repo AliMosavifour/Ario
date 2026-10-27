@@ -1008,6 +1008,7 @@ function viewAccPage(id){
   else rows=
       row('lock',(__("قفل برنامه")),lkGet()?(__("روشن")):(__("خاموش")),'openLock')+
       row('key',(__("کد VIP")),state.profile.vipCode?(__("فعال")):'','openVipCode')+
+      row('mic',__("با گفتن «آریو» باز شود","Open when I say “Ario”"),aoWakeGet()?(__("روشن")):(__("خاموش")),'toggleWake')+
       row('cloud',(__("پشتیبان‌گیری و بازیابی")),'','openBackup')+
       row('trash',(__("پاک کردن انجام‌شده‌ها")),'','clearDone')+
       row('info',(__("اطلاعات برنامه")),L?'':(__("نسخه")+" ")+fa(APP.ver),'openAppInfo');
@@ -3736,6 +3737,7 @@ actions.openNsStyle=openNsStyle;
 function hmCycle(key,opts){var i=opts.indexOf(state.profile[key]||'');state.profile[key]=opts[(i+1)%opts.length];mutate();nativeSync(true)}
 actions.cycleMsum=function(){hmCycle('msum',['','07:00','08:00','09:00'])};
 actions.cycleMev=function(){hmCycle('mev',['','18:00','20:00','21:30'])};
+actions.toggleWake=function(){var on=!aoWakeGet();try{localStorage.setItem('ario.wake',on?'1':'0')}catch(e){}if(on){setTimeout(aoWakeStart,300);toast(__('وقتی برنامه باز است، با گفتن «آریو» باز می‌شوم. کمی باتری مصرف می‌کند.','While the app is open, say “Ario” to open me. This uses a little battery.'))}else{AO.wk=false}render()};
 actions.cycleGoal=function(){var a=[3,5,8,10],i=a.indexOf(state.profile.goal||5);state.profile.goal=a[(i+1)%a.length];mutate()};
 actions.cycleFGoal=function(){var a=[30,60,90,120],i=a.indexOf(state.profile.fgoal||60);state.profile.fgoal=a[(i+1)%a.length];mutate()};
 
@@ -7747,16 +7749,36 @@ actions.adPrev=adPrevA;actions.adNext=adNextA;actions.openChar=openCharA;actions
 var AO={el:null,open:false,sid:0,busy:false,wk:false,onText:null,mic:null,said:null,msg:null,ch:null,g:null,inp:null};
 function aoT(fa,en){return __(fa,en)}
 function aoSleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
-function aoSpeak(t){
-  try{
-    if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return Promise.resolve();
-    speechSynthesis.cancel();
-    return new Promise(function(r){var u=new SpeechSynthesisUtterance(t);u.lang=EN?'en-US':'fa-IR';u.onend=u.onerror=function(){r()};setTimeout(r,4500);speechSynthesis.speak(u)});
-  }catch(e){return Promise.resolve()}
+var TTSN=null;
+try{var CAP5=window.Capacitor;if(CAP5&&CAP5.isNativePlatform&&CAP5.isNativePlatform())TTSN=(CAP5.Plugins&&CAP5.Plugins.ArioTts)||(CAP5.registerPlugin&&CAP5.registerPlugin('ArioTts'))||null}catch(e){TTSN=null}
+/* while Ario talks the .ao box gets .speak: he grows and breathes; while the person talks he keeps his normal size */
+async function aoSpeak(t){
+  AO.sp=(AO.sp||0)+1;if(AO.el)AO.el.classList.add('speak');
+  try{await aoSpeakRaw(t)}
+  finally{AO.sp=Math.max(0,(AO.sp||0)-1);if(AO.sp===0&&AO.el)AO.el.classList.remove('speak')}
 }
+function aoStopSpeak(){AO.sp=0;try{if(AO.el)AO.el.classList.remove('speak')}catch(e){}try{if(TTSN)TTSN.stop()}catch(e){}try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}}
+/* Ario talks: Android's own text-to-speech in the APK, the browser voice elsewhere */
+async function aoSpeakRaw(t){
+  t=String(t||'').replace(/[«»✓•·→]/g,' ').replace(/\s+/g,' ').trim();if(!t)return;
+  if(TTSN){
+    try{
+      var r=await Promise.race([TTSN.speak({text:t,lang:EN?'en-US':'fa-IR',rate:1}),aoSleep(20000).then(function(){return {ok:false}})]);
+      if(r&&r.ok)return;
+      if(r&&r.reason==='lang'&&!AO.ttsWarned){AO.ttsWarned=true;aoNote(aoT('صدای فارسی روی گوشی نصب نیست. تنظیمات گوشی > متن به گفتار (Text-to-speech) را باز کن، موتور Google را انتخاب کن و صدای فارسی را دانلود کن.','No voice for this language is installed. Open phone Settings > Text-to-speech, pick the Google engine and download the voice.'))}
+      return;
+    }catch(e){}
+  }
+  try{
+    if(!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
+    speechSynthesis.cancel();
+    await new Promise(function(r){var u=new SpeechSynthesisUtterance(t);u.lang=EN?'en-US':'fa-IR';u.onend=u.onerror=function(){r()};setTimeout(r,6000);speechSynthesis.speak(u)});
+  }catch(e){}
+}
+function aoNote(txt){try{if(AO.said)AO.said.textContent=txt}catch(e){}}
 function aoState(s){if(AO.g)AO.g.className='ao-g '+s}
 function aoSay(txt,speak){if(AO.msg)AO.msg.textContent=txt;return speak?aoSpeak(txt):Promise.resolve()}
-function aoWakeGet(){try{return localStorage.getItem('ario.wake')==='1'}catch(e){return false}}
+function aoWakeGet(){try{return localStorage.getItem('ario.wake')!=='0'}catch(e){return true}}
 function aoBuild(){
   if(AO.el)return;
   var f=document.createElement('button');f.type='button';f.id='aoFab';f.className='ao-fab';f.setAttribute('aria-label',aoT('دستیار صوتی Ario','Ario voice assistant'));
@@ -7765,32 +7787,32 @@ function aoBuild(){
   document.body.appendChild(f);
   var d=document.createElement('div');d.id='ao';d.className='ao';d.hidden=true;d.setAttribute('role','dialog');d.setAttribute('aria-label','Ario');
   d.innerHTML='<button type="button" class="ao-x" aria-label="'+aoT('بستن','Close')+'">'+icon('close')+'</button>'+
-    '<div class="ao-main"><div class="ao-g idle"><img src="img/ario-ghost.webp" alt="" draggable="false"></div>'+
+    '<div class="ao-main"><div class="ao-g idle"><i class="ao-w"></i><i class="ao-w"></i><i class="ao-w"></i><img src="img/ario-ghost.webp" alt="" draggable="false"></div>'+
     '<div class="ao-said"></div><div class="ao-msg"></div><div class="ao-ch"></div></div>'+
     '<div class="ao-bot"><form class="ao-f" autocomplete="off"><input class="ao-in" type="text" maxlength="160" placeholder="'+aoT('یا اینجا بنویس…','Or type here…')+'"><button type="button" class="ao-mic" aria-label="'+aoT('میکروفون','Microphone')+'">'+icon('mic')+'</button></form>'+
-    '<label class="ao-wake"><input type="checkbox"> <span>'+aoT('با گفتن «آریو» بیدار شود (آزمایشی، فقط وقتی برنامه باز است)','Wake on “Ario” (experimental, only while the app is open)')+'</span></label></div>';
+    '</div>';
   document.body.appendChild(d);
   AO.el=d;AO.g=d.querySelector('.ao-g');AO.said=d.querySelector('.ao-said');AO.msg=d.querySelector('.ao-msg');AO.ch=d.querySelector('.ao-ch');AO.mic=d.querySelector('.ao-mic');AO.inp=d.querySelector('.ao-in');
   d.querySelector('.ao-x').addEventListener('click',aoClose);
+  /* the text box and the mic stay hidden until the person taps Ario himself */
+  AO.g.setAttribute('role','button');AO.g.setAttribute('tabindex','0');AO.g.setAttribute('aria-label',aoT('نوشتن یا میکروفون','Type or use the mic'));
+  function aoToggleInput(){var on=AO.el.classList.toggle('typing');if(on){try{AO.inp.focus()}catch(e){}}else{try{AO.inp.blur()}catch(e){}}}
+  AO.g.addEventListener('click',aoToggleInput);
+  AO.g.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();aoToggleInput()}});
   AO.mic.addEventListener('click',function(){aoRetry()});
-  d.querySelector('.ao-f').addEventListener('submit',function(e){e.preventDefault();var v=AO.inp.value.trim();AO.inp.value='';if(v&&AO.onText)AO.onText(v)});
-  var cb=d.querySelector('.ao-wake input');cb.checked=aoWakeGet();
-  cb.addEventListener('change',function(){
-    try{localStorage.setItem('ario.wake',cb.checked?'1':'0')}catch(e){}
-    if(cb.checked)aoSay(aoT('وقتی بسته شدم، با گفتن «آریو» بیدار می‌شوم. این حالت باتری بیشتری مصرف می‌کند.','After I close, say “Ario” to wake me. This uses more battery.'));
-    else AO.wk=false;
-  });
+  d.querySelector('.ao-f').addEventListener('submit',function(e){e.preventDefault();var v=AO.inp.value.trim();AO.inp.value='';if(v&&aoIsBye(v)){aoBye(AO.sid);return}if(v&&AO.onText)AO.onText(v)});
 }
 async function aoOpen(){
   aoBuild();if(AO.open)return;
   AO.open=true;AO.wk=false;AO.sid++;var sid=AO.sid;
   AO.said.textContent='';AO.ch.innerHTML='';AO.msg.textContent='';
+  AO.el.classList.remove('typing');
   AO.el.hidden=false;requestAnimationFrame(function(){requestAnimationFrame(function(){AO.el.classList.add('on')})});
   await aoConverse(sid);
 }
 function aoClose(){
-  AO.sid++;AO.open=false;AO.busy=false;AO.onText=null;
-  try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(e){}
+  clearTimeout(AO.idleT);AO.sid++;AO.open=false;AO.busy=false;AO.onText=null;
+  aoStopSpeak();
   if(!AO.el)return;AO.el.classList.remove('on');setTimeout(function(){if(!AO.open)AO.el.hidden=true},300);
   setTimeout(aoWakeStart,800);
 }
@@ -7799,6 +7821,7 @@ async function aoHear(sid,prompt){
   try{t=await voiceListen(prompt||aoT('بگو…','Say it…'),AO.mic)}catch(e){}
   if(sid!==AO.sid)return '';aoState('idle');
   if(t)AO.said.textContent='«'+t+'»';
+  if(t&&aoIsBye(t)){aoBye(sid);return ''}
   return t||'';
 }
 async function aoConverse(sid){
@@ -7808,15 +7831,15 @@ async function aoConverse(sid){
   if(sid!==AO.sid)return;
   var t=await aoHear(sid,aoT('مثلاً: دوشنبه تکلیف ریاضی دارم','e.g. Monday I have a math assignment'));
   if(sid!==AO.sid)return;
-  if(!t){aoSay(aoT('چیزی نشنیدم. روی میکروفون بزن یا بنویس.','I didn’t hear anything. Tap the mic or type.'));return}
+  if(!t){aoSay(aoT('چیزی نشنیدم. روی آریو بزن تا بنویسی یا میکروفون بیاید.','I didn’t hear anything. Tap Ario to type or use the mic.'));aoIdle(sid,20000);return}
   await aoHandle(sid,t);
 }
 function aoRetry(){
-  if(!AO.open||AO.busy)return;AO.sid++;var sid=AO.sid;AO.ch.innerHTML='';
+  if(!AO.open||AO.busy)return;AO.sid++;var sid=AO.sid;AO.ch.innerHTML='';aoStopSpeak();
   (async function(){
     AO.onText=function(t){aoHandle(sid,t)};
     var t=await aoHear(sid);if(sid!==AO.sid)return;
-    if(t)await aoHandle(sid,t);else aoSay(aoT('چیزی نشنیدم. دوباره امتحان کن.','I didn’t hear anything. Try again.'));
+    if(t)await aoHandle(sid,t);else{aoSay(aoT('چیزی نشنیدم. دوباره امتحان کن.','I didn’t hear anything. Try again.'));aoIdle(sid,20000)}
   })();
 }
 /* strip the assistant's name and filler words, keep the task itself */
@@ -7845,6 +7868,7 @@ function aoChoices(list,pick){
 async function aoAsk(sid,question,list,match,hint){
   AO.ch.innerHTML='';
   await aoSay(question,true);if(sid!==AO.sid)return null;
+  aoIdle(sid,45000);
   var done=false,pick,p=new Promise(function(r){pick=function(v){if(!done){done=true;AO.onText=null;AO.ch.innerHTML='';r(v)}}});
   aoChoices(list,pick);
   AO.onText=function(t){var v=match(t);if(v!=null)pick(v);else aoSay(aoT('نفهمیدم؛ یکی از گزینه‌ها را بزن.','I didn’t get that; tap one of the options.'))};
@@ -7854,6 +7878,21 @@ async function aoAsk(sid,question,list,match,hint){
   })();
   return p;
 }
+
+function aoIsBye(t){
+  var x=aoNorm(t).replace(/(^|\s)(آریو|اریو|ario|hey)(?=\s|$)/g,' ').replace(/[.!؟?،,]/g,' ').replace(/\s+/g,' ').trim();
+  if(!x)return false;
+  return /^(پایان|تمام|تمامه|تمام شد|تموم|تموم شد|ممنون|ممنونم|خیلی ممنون|مرسی|مرسی ازت|متشکرم|مچکرم|خداحافظ|خدافظ|بسه|بس است|همین بود|همین|کارم تمام شد|کارم تموم شد|کار من تمام شد|کار من تموم شد|دیگه کاری ندارم|کاری ندارم|نه ممنون|دستت درد نکنه|لغو|بستن|بخواب)$/.test(x)||
+         /^(done|finished|all done|that'?s all|that is all|thanks|thank you|thank you so much|thanks a lot|bye|goodbye|stop|exit|close|i'?m done|i am done|no thanks|never ?mind)$/.test(x);
+}
+async function aoBye(sid){
+  if(sid!==AO.sid)return;
+  AO.busy=true;AO.onText=null;AO.ch.innerHTML='';aoState('ok');
+  await aoSay(aoT('باشه، هر وقت خواستی صدام کن.','OK, call me whenever you need.'),true);
+  AO.busy=false;
+  if(sid===AO.sid)aoClose();
+}
+function aoIdle(sid,ms){clearTimeout(AO.idleT);AO.idleT=setTimeout(function(){if(sid===AO.sid&&AO.open&&!AO.busy)aoClose()},ms||25000)}
 function aoNorm(t){return vcNorm(String(t||'')).toLowerCase().replace(/\u200c/g,' ')}
 function aoMatchWhere(t){
   var x=aoNorm(t);
@@ -7899,11 +7938,37 @@ function aoSaveTT(title,dk,idx){
   try{if(ttEl&&typeof ttRedraw==='function')ttRedraw()}catch(e){}
   return true;
 }
+/* "what do I have today?" — Ario reads the tasks out loud instead of saving a new one */
+function aoIsAsk(raw){
+  var x=aoNorm(raw).replace(/[.!؟?،,]/g,' ').replace(/\s+/g,' ').trim();
+  if(!x)return false;
+  if(EN)return /\b(what('?s| is| do i have| are my)|show (me )?my|read (me )?my|list my|how many)\b.*\b(tasks?|todos?|plans?|schedule|have|on)\b/.test(x)||/^(my )?(tasks?|schedule|plans?)( for| on)? ?(today|tomorrow)?$/.test(x);
+  var task=/کار|تکلیف|برنامه/.test(x),w=function(r){return new RegExp('(^|\\s)(?:'+r+')(?=\\s|$)').test(x)};
+  return (w('چی|چه|چیه|چیست|چیا|چیاست|چند')&&(task||w('دارم|مونده|مانده|باقی')))||(task&&w('بخون|بخوان|بگو|بگید|نشون بده|نشان بده|لیست'));
+}
+async function aoReadTasks(sid,raw){
+  var o=nlParse(raw.replace(/(امروز|فردا|دیروز)(م|ام)(?=\s|$)/g,'$1')),dk=o.hasDate?o.d:todayKey();
+  var all=state.tasks.filter(function(t){return t.d===dk}),open=sortDay(all.filter(function(t){return !t.done})),dn=all.length-open.length;
+  var day=relDate(dk),msg;
+  if(!all.length)msg=aoT('برای '+day+' کاری ثبت نشده.','Nothing planned for '+day+'.');
+  else if(!open.length)msg=aoT('همهٔ '+fa(all.length)+' کارِ '+day+' انجام شده ✓','All '+all.length+' tasks for '+day+' are done ✓');
+  else{
+    var names=open.slice(0,6).map(function(t,i){return (t.tm?fa(pad(pt(t.tm).h)+':'+pad(pt(t.tm).m))+' ':'')+t.t});
+    msg=aoT(day+' '+fa(open.length)+' کار داری'+(dn?' ('+fa(dn)+' تا انجام شده)':'')+': ',day+': '+open.length+' to do'+(dn?' ('+dn+' done)':'')+': ')+names.join(aoT('، ',', '))+(open.length>6?aoT(' و '+fa(open.length-6)+' کار دیگر',' and '+(open.length-6)+' more'):'')+'.';
+  }
+  AO.ch.innerHTML='';aoState('ok');
+  await aoSay(msg,true);
+  if(sid!==AO.sid)return;
+  AO.onText=function(t){aoHandle(sid,t)};
+  aoIdle(sid,12000);
+}
 async function aoHandle(sid,text){
   if(AO.busy||sid!==AO.sid)return;AO.busy=true;
   try{
     aoState('think');AO.ch.innerHTML='';AO.said.textContent='«'+text+'»';
-    var raw=aoClean(text),o=nlParse(raw);
+    var raw=aoClean(text);
+    if(aoIsAsk(raw)){await aoReadTasks(sid,raw);return}
+    var o=nlParse(raw);
     var title=aoTitle(o.t);
     if(!title){await aoSay(aoT('متوجه کار نشدم؛ دوباره بگو.','I didn’t catch the task; say it again.'));aoState('idle');return}
     var dk=o.hasDate?o.d:null;
@@ -7927,11 +7992,11 @@ async function aoHandle(sid,text){
 /* experimental wake word: listens for "Ario" while the app is open (native speech plugin only) */
 var AO_RX=/(^|\s)(ario|آریو|اریو|آریوو|aryo)(\s|$)/i;
 function aoWakeStart(){
-  if(!aoWakeGet()||AO.open||AO.wk||!SRN||document.visibilityState!=='visible')return;
+  if(!aoWakeGet()||AO.open||AO.wk||!SRN||vcBusy||document.visibilityState!=='visible'||Date.now()<(AO.wkNext||0))return;
   AO.wk=true;
   (async function(){
     var fails=0;
-    try{var pm=await SRN.checkPermissions();if(!pm||pm.speechRecognition!=='granted'){AO.wk=false;return}}catch(e){AO.wk=false;return}
+    try{var pm=await SRN.checkPermissions();if(!pm||pm.speechRecognition!=='granted'){AO.wk=false;AO.wkNext=Date.now()+30000;return}}catch(e){AO.wk=false;AO.wkNext=Date.now()+60000;return}
     while(AO.wk&&aoWakeGet()&&!AO.open&&document.visibilityState==='visible'&&!vcBusy){
       var heard=false,h=null;
       try{
@@ -7941,7 +8006,7 @@ function aoWakeStart(){
         try{await SRN.stop()}catch(e2){}
         try{h&&h.remove&&h.remove()}catch(e3){}
         fails=0;
-      }catch(e){try{h&&h.remove&&h.remove()}catch(e4){}fails++;if(fails>=3){AO.wk=false;return}await aoSleep(2500)}
+      }catch(e){try{h&&h.remove&&h.remove()}catch(e4){}fails++;if(fails>=3){AO.wk=false;AO.wkNext=Date.now()+60000;return}await aoSleep(2500)}
       if(heard){AO.wk=false;aoOpen();return}
       await aoSleep(500);
     }
@@ -7964,7 +8029,20 @@ document.addEventListener('visibilitychange',function(){
 boot('native',function(){nativeInit()});
 boot('lock',function(){alCheck();if(lkGet()){alSecure(true);showLock()}});
 boot('gm',function(){gmCheck(true)});
-boot('assistant',function(){aoBuild();setTimeout(aoWakeStart,2500)});
+boot('assistant',function(){
+  aoBuild();
+  (async function(){
+    try{
+      if(SRN&&aoWakeGet()&&!localStorage.getItem('ario.permAsked')){
+        var pm=await SRN.checkPermissions();
+        if(pm&&pm.speechRecognition!=='granted'){localStorage.setItem('ario.permAsked','1');await SRN.requestPermissions()}
+      }
+    }catch(e){}
+    setTimeout(aoWakeStart,800);
+  })();
+  setInterval(function(){try{aoWakeStart()}catch(e){}},6000);
+  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(aoWakeStart,600);else AO.wk=false});
+});
 
 boot('splash',function(){var e=document.getElementById('splash');if(!e)return;var w=Math.max(0,1100-(Date.now()-(window.__t0||0)));setTimeout(function(){e.classList.add('out');setTimeout(function(){e.remove()},450)},w)});
 boot('pill',function(){requestAnimationFrame(function(){requestAnimationFrame(function(){try{$('.tabbar').classList.add('ready');movePill.k=null;movePill()}catch(e){}})})});
