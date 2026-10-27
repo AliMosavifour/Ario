@@ -12,6 +12,46 @@
 #splash[data-t=dark]{background:#080a12;color:#f1f3fa}#splash[data-t=dark] img{box-shadow:0 14px 40px rgba(0,0,0,.55)}#splash[data-t=dark] .dots i{background:#7d93ff}
 
 </style></head><body><div id="splash" role="status" aria-label="در حال بارگذاری"><img src="img/app-icon.webp" width="104" height="104" alt="" aria-hidden="true"><b>Ario</b><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div></div><script>window.__t0=Date.now();try{var _t=JSON.parse(localStorage.getItem('barnameyar.v1')).profile.theme;if(_t==='light'||_t==='dark')document.getElementById('splash').setAttribute('data-t',_t)}catch(e){}setTimeout(function(){var e=document.getElementById('splash');if(e)e.remove()},10000)</script>
+<script>
+/* start-up safety net: if the app can not start, show the real error instead of an empty screen */
+(function(){
+  var errs=[],shown=false;
+  function L(){try{var l=localStorage.getItem('barnameyar.lang');if(l==='en'||l==='fa')return l}catch(e){}return String(navigator.language||'').toLowerCase().indexOf('fa')===0?'fa':'en'}
+  function T(fa,en){return L()==='fa'?fa:en}
+  function txt(e){return String(e&&(e.stack||e.message)||e).slice(0,700)}
+  window.__arioErr=function(w,e){
+    errs.push(w+' :: '+txt(e));
+    try{localStorage.setItem('ario.lasterr',errs.slice(-6).join('\n---\n'))}catch(x){}
+    if(w==='boot:render'||w==='boot:theme'||w==='js'&&!window.__arioReady)setTimeout(show,0);
+  };
+  window.addEventListener('error',function(ev){window.__arioErr('js',ev.error||((ev.message||'error')+' @'+ev.lineno+':'+ev.colno))});
+  window.addEventListener('unhandledrejection',function(ev){errs.push('promise :: '+txt(ev.reason));try{localStorage.setItem('ario.lasterr',errs.slice(-6).join('\n---\n'))}catch(x){}});
+  function btn(label,fn,primary){var b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;
+    b.style.cssText='display:block;width:100%;margin:8px 0 0;padding:13px;border-radius:14px;border:0;font:600 15px system-ui,sans-serif;color:'+(primary?'#fff':'#e8ecff')+';background:'+(primary?'#2f7bff':'rgba(255,255,255,.12)');return b}
+  function show(){
+    if(shown)return;shown=true;
+    var sp=document.getElementById('splash');if(sp)sp.remove();
+    var d=document.createElement('div');d.setAttribute('dir',L()==='fa'?'rtl':'ltr');
+    d.style.cssText='position:fixed;inset:0;z-index:100001;overflow:auto;background:#080a12;color:#f1f3fa;padding:28px 20px;font:15px/1.7 Vazirmatn,system-ui,sans-serif';
+    var h=document.createElement('b');h.style.cssText='font-size:20px;display:block;margin-bottom:6px';h.textContent=T('برنامه درست باز نشد','Ario could not start properly');
+    var p=document.createElement('p');p.style.cssText='opacity:.8;margin:0 0 12px';p.textContent=T('اطلاعات شما پاک نشده است. این متن خطا را برای پشتیبانی بفرست:','Your data is safe. Please send this error text to support:');
+    var pre=document.createElement('pre');pre.style.cssText='direction:ltr;text-align:left;white-space:pre-wrap;word-break:break-word;background:rgba(255,255,255,.08);border-radius:12px;padding:12px;font:12px/1.5 monospace;max-height:42vh;overflow:auto;user-select:text;-webkit-user-select:text';
+    var info='UA: '+navigator.userAgent+'\nLang: '+navigator.language+'\n'+(errs.length?errs.join('\n---\n'):T('(خطایی ثبت نشد؛ برنامه شروع نشد)','(no error captured; the app did not start)'));
+    pre.textContent=info;
+    d.appendChild(h);d.appendChild(p);d.appendChild(pre);
+    d.appendChild(btn(T('کپی متن خطا','Copy error text'),function(){try{navigator.clipboard.writeText(info)}catch(e){var r=document.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r)}},false));
+    d.appendChild(btn(T('تلاش دوباره','Try again'),function(){location.reload()},true));
+    var armed=false,rb=btn(T('بازنشانی داده‌های برنامه (آخرین راه)','Reset app data (last resort)'),function(){
+      if(!armed){armed=true;rb.textContent=T('دوباره بزن تا تأیید شود؛ یک نسخهٔ پشتیبان نگه داشته می‌شود','Tap again to confirm; a backup copy is kept');return}
+      try{var o=localStorage.getItem('barnameyar.v1');if(o)localStorage.setItem('ario.bak',o);localStorage.removeItem('barnameyar.v1')}catch(e){}
+      location.reload()},false);
+    d.appendChild(rb);
+    document.body.appendChild(d);
+  }
+  window.__arioShowFail=show;
+  setTimeout(function(){if(!window.__arioReady)show()},8000);
+})();
+</script>
 <title>Ario</title>
 <link rel="preload" href="fonts/Vazirmatn.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/app.css">
